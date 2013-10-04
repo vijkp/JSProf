@@ -1,7 +1,7 @@
 JSProf
 ======
 
-This is a JavaScript Profiler with the following functions
+This is a JavaScript Profiler which reports the following information
 
 	1. Execution times for individual functions
 	2. Edges between caller and callee functions
