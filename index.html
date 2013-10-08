@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+
+<html>
+	<head>
+		<title> JSProf </title>
+		<link rel="stylesheet" type="text/css" href="css/layout.css" media="screen, projection">
+	</head>
+
+	<body>
+		<!-- External Javascript source files -->
+		<script src='esprima/esprima.js'></script>
+
+		<div id="wrap">	
+			<div id="header"><h1>JSProf</h1></div>
+			<div id="nav">
+				<ul>
+					<li><a href="#">Option 1</a></li>
+					<li><a href="#">Option 2</a></li>
+				</ul>
+			</div>
+
+			<div id="main">
+				<h3> Description </h3>
+				<p> This is a Javascript profiler written in Javascript. <br> <br>
+					Things done so far: <br> 
+					a. List of Functions </p>
+			</div>
+
+			<div id="testbed">
+				<h3> Test </h3>
+				<p>Select a .js file to profile</p>
+				<input type="file" id="fileinput" />
+				<p> Results: </p>
+				<div id="output_box">
+					<div id="output"></div>
+				</div>
+			</div>			
+
+			<div id="footer">
+				<p> HTML5 </p>
+			</div>
+		</div>
+
+		<!-- Copied from test.html -->
+		<script type="text/javascript">
+			function readSingleFile(evt) {
+				/* Retrieve the first (and only!) File from the FileList object */
+				var f = evt.target.files[0];
+				if (f) {
+					var r = new FileReader();
+
+					r.onload = function(e) { 
+						var contents = e.target.result;
+						parseout = esprima.parse(contents,  { range: true, loc: true });
+						console.log(parseout);
+						var list = parseout.body;	
+						var i,j = 0;
+						var functionList = [];
+						var functionListString = "List of Functions: <br>";
+						console.log("List of Functions:");
+						for (i=0; i<list.length; i++) {
+							if (list[i].type === "FunctionDeclaration") {
+								console.log(list[i].id.name);
+								functionList[j] = list[i].id.name;
+								functionListString = functionListString.concat(list[i].id.name) + "<br>" ;
+								j++;
+							}
+						}
+						console.log(functionList);
+						var j;
+						document.getElementById('output').innerHTML = functionListString;
+					}
+
+					r.readAsText(f);
+				} else { 
+					alert("Failed to load file");
+				}
+			}
+		document.getElementById('fileinput').addEventListener('change', readSingleFile, false);
+		</script>
+
+	</body>
+</html>
