@@ -8,7 +8,8 @@
 
 	<body>
 		<!-- External Javascript source files -->
-		<script src='esprima/esprima.js'></script>
+		<script type="text/javascript" src='esprima/esprima.js'></script>
+		<script type="text/javascript" src='jsprof.js'></script>
 
 		<div id="wrap">	
 			<div id="header"><h1>JSProf</h1></div>
@@ -19,13 +20,13 @@
 				</ul>
 			</div>
 
-			<div id="main">
+			<div id="description">
 				<h3> Description </h3>
 				<p> This is a Javascript profiler written in Javascript. <br> <br>
 					Things done so far: <br> 
 					a. List of Functions </p>
 			</div>
-
+			
 			<div id="testbed">
 				<h3> Test </h3>
 				<p>Select a .js file to profile</p>
@@ -41,36 +42,18 @@
 			</div>
 		</div>
 
-		<!-- Copied from test.html -->
+		<!-- Javascript in this file -->
 		<script type="text/javascript">
 			function readSingleFile(evt) {
 				/* Retrieve the first (and only!) File from the FileList object */
 				var f = evt.target.files[0];
 				if (f) {
 					var r = new FileReader();
-
 					r.onload = function(e) { 
 						var contents = e.target.result;
-						parseout = esprima.parse(contents,  { range: true, loc: true });
-						console.log(parseout);
-						var list = parseout.body;	
-						var i,j = 0;
-						var functionList = [];
-						var functionListString = "List of Functions: <br>";
-						console.log("List of Functions:");
-						for (i=0; i<list.length; i++) {
-							if (list[i].type === "FunctionDeclaration") {
-								console.log(list[i].id.name);
-								functionList[j] = list[i].id.name;
-								functionListString = functionListString.concat(list[i].id.name) + "<br>" ;
-								j++;
-							}
-						}
-						console.log(functionList);
-						var j;
+						functionListString = listFunctionsInFile(contents);
 						document.getElementById('output').innerHTML = functionListString;
 					}
-
 					r.readAsText(f);
 				} else { 
 					alert("Failed to load file");
