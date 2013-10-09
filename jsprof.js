@@ -7,6 +7,8 @@ var functionList = [];
 var functionCallerList = "Function call list (callee, caller) pairs: <br>";
 
 function listFunctionsInFile(contents) {
+	functionList = [];
+	functionCallerList = "Function call list (callee, caller) pairs: <br>";	
 	functionCallerList += "Funtion callee: " + arguments.callee.name + " " + 
 						  "Funtion caller: " + arguments.callee.caller.name + "<br>";
 
