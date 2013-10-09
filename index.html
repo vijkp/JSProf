@@ -29,6 +29,7 @@
 							 with start and end line numbers. </li>
 						<li> Prints the above corresponding Object. </li>
 						<li> Prints of all the caller and callee functions of this program.</li>
+						<li> Prints all the lines where functions are called </li>
 					</ul>
 				</p>
 			</div>
@@ -57,7 +58,7 @@
 					var r = new FileReader();
 					r.onload = function(e) { 
 						var contents = e.target.result;
-						functionListString = listFunctionsInFile(contents);
+						functionListString = main(contents);
 						document.getElementById('output').innerHTML = functionListString;
 					}
 					r.readAsText(f);
