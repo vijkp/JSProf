@@ -24,12 +24,18 @@
 				<h3> Description </h3>
 				<p> This is a Javascript profiler written in Javascript. <br> <br>
 					Things done so far: <br> 
-					a. List of Functions </p>
+					<ul>
+						<li> List all the functions (nested, new function assignment) 
+							 with start and end line numbers. </li>
+						<li> Prints the above corresponding Object. </li>
+						<li> Prints of all the caller and callee functions of this program.</li>
+					</ul>
+				</p>
 			</div>
 			
 			<div id="testbed">
 				<h3> Test </h3>
-				<p>Select a .js file to profile</p>
+				<p> Select a .js file to profile </p>
 				<input type="file" id="fileinput" />
 				<p> Results: </p>
 				<div id="output_box">
