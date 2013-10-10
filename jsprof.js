@@ -227,8 +227,8 @@ function showResults() {
 	/* Frequency of calls for each function*/
 	debugLog("<br>Frequency of calls for each function");
 	for (var key in functionStats){
-		debugLog("Hits : " + functionStats[key].hits +
-			" ms for " + functionStats[key].name+"()");
+		debugLog("Hits: " + functionStats[key].hits +
+			" for " + functionStats[key].name+"()");
 	}
 
 	/* Print all functions pairs and number of their hits */
