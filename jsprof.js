@@ -1,4 +1,6 @@
-
+//==============================================================================================================
+//JSProf - Javascript profiler written in Javascript
+//==============================================================================================================
 /* 
  * This function lists the functions from the text 'contents' 
  *TODO: Remove globals*/
@@ -10,23 +12,44 @@ var callerCalleeList = [];
 var functionCallerList = "Function call list (callee, caller) pairs: <br>";
 var functionListString;
 
+//Test code for instrumentation
+var startCode = "console.log('FunctionStart');";
+var endCode = "console.log('FunctionEnd');";
+
+//==============================================================================================================
+//Main function
+//==============================================================================================================
 function main(contents)
 {
-	listFunctionsInFile(contents);
-	listFunctionCalls(contents);
+	cleanedCode = rewriteCode(contents);
+	listFunctionsInFile(cleanedCode);
+	instrument(cleanedCode);
 	return functionListString;
 }
 
-function listFunctionsInFile(contents) {
-	functionList = [];
-
+//===============================================================================================================
+//Every programmer formats code in a different way. This function is used to format the code in a specific way
+//such that the input code is universally understandable.
+//===============================================================================================================
+function rewriteCode(contents)
+{
 	/* Parse the code and rewrite it to the standard form that we are going to use */
 	var optionsToRewrite = {"comment":true,"format":{"indent":{"style":"    "},"quotes":"single"}};
 	var toRewrite = esprima.parse(contents, {range: true, loc: true});
-	code = window.escodegen.generate(toRewrite, optionsToRewrite);
+	cleanedCode = window.escodegen.generate(toRewrite, optionsToRewrite);
+	return cleanedCode;
+}
 
+//==============================================================================================================
+//Function to list all the functions in the input file and note down the start and end line numbers of the function
+//definition. The object that is used to store the function specific data is in the form
+//{"name" : "lstart", "lend"}
+//==============================================================================================================
+function listFunctionsInFile(cleanedCode) 
+{
+	functionList = [];
 	functionListString = "List of Functions with their start and end line numbers: <br>";
-	parseout = esprima.parse(code,  {range: true, loc: true});
+	parseout = esprima.parse(cleanedCode,  {range: true, loc: true});
 	var list = parseout.body;	
 	numberOfFunctions = 0;
 	listFunctionsRecursive(list);
@@ -35,36 +58,46 @@ function listFunctionsInFile(contents) {
 	console.log(functionList);
 	
 	/* Format functionList into readabe form */
-	for (key in functionList){
+	for (key in functionList)
+	{
 		functionListString += 	functionList[key].name  + ", " +
 								functionList[key].lstart+ ", " +
 								functionList[key].lend  + "<br>";
 	}
+
 	functionListString += "<br>"+"Object = " + JSON.stringify(functionList)+ "<br>";
 	functionListString += "<br>"+functionCallerList;
 }
 
-function listFunctionsRecursive(list) {
+//==============================================================================================================
+//Function that recursively looks into the input code and gets the definitions of the functions in the code
+//==============================================================================================================
+function listFunctionsRecursive(list) 
+{
 	var obj = {};
-	for (var key in list) {
-		if (list.hasOwnProperty(key)){
+	for (var key in list) 
+	{
+		if (list.hasOwnProperty(key))
+		{
 			obj = list[key];
 			switch (obj.type)
 			{
 				case "FunctionDeclaration":
+					/*In our design we like the input code to be in an array. Esprima gives the line numbers
+					starting from 1, hence we subtract the line numbers by 1*/
 					functionList[obj.id.name] = {"name": obj.id.name, 
-													   "lstart": obj.loc.start.line, 
-													   "lend": obj.loc.end.line};
+													   "lstart": obj.loc.start.line-1, 
+													   "lend": obj.loc.end.line-1};
 					listFunctionsRecursive(obj.body.body);
 					break;
 				case "VariableDeclaration":
 					listFunctionsRecursive(obj.declarations);
 					break;
 				case "VariableDeclarator":
-					if (obj.init.type === "FunctionExpression") {
+					if (obj.init && (obj.init.type === "FunctionExpression")) {
 						functionList[obj.id.name] = {"name": obj.id.name, 
-													       "lstart": obj.init.loc.start.line, 
-													   	   "lend": obj.init.loc.end.line};
+													       "lstart": obj.init.loc.start.line-1, 
+													   	   "lend": obj.init.loc.end.line-1};
 						listFunctionsRecursive(obj.init.body.body);
 					}
 					break;
@@ -75,35 +108,48 @@ function listFunctionsRecursive(list) {
 	}
 }
 
-function listFunctionCalls(contents)
+//==============================================================================================================
+//Function to fill up a list with all the positions where functions are defined
+//==============================================================================================================
+function sortFunctionPositions(linesOfCode)
 {
-	parseout = esprima.parse(contents,  {range: true, loc: true});
-	var list = parseout.body;	
-	listFunctionCallsRecursively(list);
-	functionListString += "<br>"+"List of function calls = " + JSON.stringify(callerCalleeList)+ "<br>";
+	var positionList = [];
+	
+	for(var i in functionList)
+	{
+		positionList[functionList[i].lstart] = {"position" : "start"};
+		positionList[functionList[i].lend] = {"position" : "end"};
+	}
+	return positionList;
 }
 
-function listFunctionCallsRecursively(list)
+//==============================================================================================================
+//Function to add instrumentation to the code
+//==============================================================================================================
+function instrument(cleanedCode)
 {
-	var obj = {};
-	for (var key in list) 
+	var code = cleanedCode.split("\n");
+	var positionList = sortFunctionPositions(code.size);
+
+	//Inserting startCode and endCode un every function definition
+	for(var i in positionList)
 	{
-		obj = list[key];
-		if(obj.type == "ExpressionStatement")
+		if(positionList[i].position === "start")
 		{
-				var expr = obj.expression;
-				if(expr == "CallExpression")
-				console.log("function "+ expr.callee.name);
-				callerCalleeList[numberOfFunctionCalls] = {"name": expr.callee.name, 
-												   		   "lstart": expr.callee.loc.start.line,
-												   		   "lend": expr.callee.loc.end.line};
-				numberOfFunctionCalls++;
+			code[i] = code[i] + startCode;
 		}
-		else if(obj.body)
+		else if(positionList[i].position === "end")
 		{
-			//This can be a block statement or a function declaration inside which another function is called.
-			listFunctionCallsRecursively(obj.body.body);
+			code[i] = endCode + code[i];
 		}
 	}
-}
 
+	//Testing how the output looks. Looks cleaner than when you use JSON.stringify
+	var cc = "";
+	for(var z in code)
+	{
+		cc = cc + code[z];
+
+	}
+	console.log(rewriteCode(cc));
+}
