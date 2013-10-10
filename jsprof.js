@@ -12,7 +12,7 @@ var callerCalleeList = [];
 var functionCallerList = "Function call list (callee, caller) pairs: <br>";
 var functionListString;
 
-//Test code for instrumentation
+/* Test code for instrumentation */
 var startCode = "console.log('FunctionStart');";
 var endCode = "console.log('FunctionEnd');";
 
@@ -57,7 +57,7 @@ function listFunctionsInFile(cleanedCode)
 	/* Print object in the console */
 	console.log(functionList);
 	
-	/* Format functionList into readabe form */
+	/* Format functionList into readable form */
 	for (key in functionList)
 	{
 		functionListString += 	functionList[key].name  + ", " +
@@ -102,7 +102,7 @@ function listFunctionsRecursive(list)
 					}
 					break;
 				default:
-					//do nothing
+					/* do nothing */
 			}
 		}
 	}
@@ -131,7 +131,7 @@ function instrument(cleanedCode)
 	var code = cleanedCode.split("\n");
 	var positionList = sortFunctionPositions(code.size);
 
-	//Inserting startCode and endCode un every function definition
+	/* Inserting startCode and endCode in every function definition */
 	for(var i in positionList)
 	{
 		if(positionList[i].position === "start")
@@ -144,7 +144,17 @@ function instrument(cleanedCode)
 		}
 	}
 
-	//Testing how the output looks. Looks cleaner than when you use JSON.stringify
+	/* Deal with return statements being strewn in the function definition */
+	for(var i in code)
+	{
+		if(code[i].indexOf("return ") != -1)
+		{
+			/* Insert endCode for that line as well */
+			code[i] = endCode + code[i];
+		}
+	}
+
+	/* Testing how the output looks. Looks cleaner than when you use JSON.stringify */
 	var cc = "";
 	for(var z in code)
 	{
