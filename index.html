@@ -1,73 +1,67 @@
 <!DOCTYPE html>
 
 <html>
-	<head>
-		<title> JSProf </title>
-		<link rel="stylesheet" type="text/css" href="css/layout.css" media="screen, projection">
-	</head>
+    <head>
+        <title> JSProf </title>
+        <link rel="stylesheet" type="text/css" href="css/layout.css" media="screen, projection">
+    </head>
+    <body>
+        <!-- External Javascript source files -->
+        <script type="text/javascript" src='lib/esprima.js'></script>
+        <script type="text/javascript" src='lib/escodegen.browser.js'></script>
+        <script type="text/javascript" src='jsprof.js'></script>
 
-	<body>
-		<!-- External Javascript source files -->
-		<script type="text/javascript" src='lib/esprima.js'></script>
-		<script type="text/javascript" src='lib/escodegen.browser.js'></script>
-		<script type="text/javascript" src='jsprof.js'></script>
-		
+        <div id="wrap">    
+            <div id="header"><h1>JSProf</h1></div>
+            <div id="nav">
+                <ul>
+                    <li><a href="#">Option 1</a></li>
+                    <li><a href="#">Option 2</a></li>
+                </ul>
+            </div>
+            <div id="description">
+                <h3> Description </h3>
+                <p> This is a Javascript profiler written in Javascript. <br> <br>
+                    Things done so far: <br> 
+                    <ul>
+                        <li> Execution times for individual functions.</li>
+                        <li> Frequency of calls for each function. </li>
+                        <li> Edges between caller and callee functions and frequency of their calls. </li> 
+                    </ul>
+                </p>
+            </div>
+            <div id="testbed">
+                <h3> Test </h3>
+                <p> Select a .js file to profile </p>
+                <input type="file" id="fileinput" />
+                <p> Results: </p>
+                <div id="output_box">
+                    <div id="output"></div>
+                </div>
+            </div>
 
-		<div id="wrap">	
-			<div id="header"><h1>JSProf</h1></div>
-			<div id="nav">
-				<ul>
-					<li><a href="#">Option 1</a></li>
-					<li><a href="#">Option 2</a></li>
-				</ul>
-			</div>
-
-			<div id="description">
-				<h3> Description </h3>
-				<p> This is a Javascript profiler written in Javascript. <br> <br>
-					Things done so far: <br> 
-					<ul>
-						<li> Execution times for individual functions.</li>
-						<li> Frequency of calls for each function. </li>
-						<li> Edges between caller and callee functions and frequency of their calls. </li> 
-					</ul>
-				</p>
-			</div>
-			
-			<div id="testbed">
-				<h3> Test </h3>
-				<p> Select a .js file to profile </p>
-				<input type="file" id="fileinput" />
-				<p> Results: </p>
-				<div id="output_box">
-					<div id="output"></div>
-				</div>
-			</div>			
-
-			<div id="footer">
-				<p> HTML5 | 10/10/2013 </p>
-			</div>
-		</div>
-
-		<!-- Javascript in this file -->
-		<script type="text/javascript">
-			function readSingleFile(evt) {
-				/* Retrieve the first (and only!) File from the FileList object */
-				var f = evt.target.files[0];
-				if (f) {
-					var r = new FileReader();
-					r.onload = function(e) { 
-						var contents = e.target.result;
-						functionListString = main(contents);
-						document.getElementById('output').innerHTML = functionListString;
-					}
-					r.readAsText(f);
-				} else { 
-					alert("Failed to load file");
-				}
-			}
-		document.getElementById('fileinput').addEventListener('change', readSingleFile, false);
-		</script>
-
-	</body>
+            <div id="footer">
+                <p> HTML5 | 10/10/2013 </p>
+            </div>
+        </div>
+        <!-- Javascript in this file -->
+        <script type="text/javascript">
+            function readSingleFile(evt) {
+                /* Retrieve the first (and only!) File from the FileList object */
+                var f = evt.target.files[0];
+                if (f) {
+                    var r = new FileReader();
+                    r.onload = function(e) { 
+                        var contents = e.target.result;
+                        functionListString = main(contents);
+                        document.getElementById('output').innerHTML = functionListString;
+                    }
+                    r.readAsText(f);
+                } else { 
+                    alert("Failed to load file");
+                }
+            }
+        document.getElementById('fileinput').addEventListener('change', readSingleFile, false);
+        </script>
+    </body>
 </html>
