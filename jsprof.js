@@ -9,12 +9,12 @@ var numberOfFunctions = 0;
 var numberOfFunctionCalls = 0;
 var functionList = [];
 var callerCalleeList = [];
-var functionCallerList = "Function call list (callee, caller) pairs: <br>";
-var functionListString;
+var functionListString = "";
+var functionStats = [];
 
 /* Test code for instrumentation */
-var startCode = "console.log('FunctionStart');";
-var endCode = "console.log('FunctionEnd');";
+var startCode = "var startTime = +new Date();profileStartInFunction(arguments.callee, arguments.callee.caller);";
+var endCode   = "profileEndInFunction(arguments.callee, startTime);";
 
 //==============================================================================================================
 //Main function
@@ -24,9 +24,17 @@ function main(contents)
 	cleanedCode = rewriteCode(contents);
 	listFunctionsInFile(cleanedCode);
 	instrument(cleanedCode);
+	eval(cleanedCode);
+	showResults();
 	return functionListString;
 }
 
+/* Debug function to print on the output box in browser */
+function debugLog(string) {
+	functionListString += string + "<br>"; 
+	document.getElementById('output').innerHTML = functionListString;
+	console.log(string);
+}
 //===============================================================================================================
 //Every programmer formats code in a different way. This function is used to format the code in a specific way
 //such that the input code is universally understandable.
@@ -48,25 +56,10 @@ function rewriteCode(contents)
 function listFunctionsInFile(cleanedCode) 
 {
 	functionList = [];
-	functionListString = "List of Functions with their start and end line numbers: <br>";
 	parseout = esprima.parse(cleanedCode,  {range: true, loc: true});
 	var list = parseout.body;	
 	numberOfFunctions = 0;
 	listFunctionsRecursive(list);
-
-	/* Print object in the console */
-	console.log(functionList);
-	
-	/* Format functionList into readable form */
-	for (key in functionList)
-	{
-		functionListString += 	functionList[key].name  + ", " +
-								functionList[key].lstart+ ", " +
-								functionList[key].lend  + "<br>";
-	}
-
-	functionListString += "<br>"+"Object = " + JSON.stringify(functionList)+ "<br>";
-	functionListString += "<br>"+functionCallerList;
 }
 
 //==============================================================================================================
@@ -161,5 +154,90 @@ function instrument(cleanedCode)
 		cc = cc + code[z];
 
 	}
-	console.log(rewriteCode(cc));
+	rewriteCode(cc);
+}
+
+function profileStartInFunction(callee, caller) {
+	var calleeName;
+	var callerName;
+	var timestamp = +new Date();
+	
+	if(callee) {
+		calleeName = callee.name;  // May not work in IE  
+	} else {
+		debugLog("Funtion not defined");
+		return;
+	}
+
+	if(caller) {
+		callerName = caller.name;
+	} else {
+		debugLog("Funtion caller not defined");
+	}
+
+	/* 
+	 * Check if this callee has an entry in functionStats variable, 
+	 * add otherwise 
+	 */
+	if (functionStats[calleeName] === undefined) {
+		functionStats[calleeName] = {"name"      : calleeName,
+									 "callers"   : [],
+									 "hits"      : 0,
+									 "timeOfExec": 0};
+	}
+
+	/* Now, check if callee's object has caller entry */
+	if (caller !== undefined) {
+		if (functionStats[calleeName].callers[callerName] === undefined) {
+			functionStats[calleeName].callers[callerName] = {"name": callerName,
+															 "hits": 0 };
+		}
+	}
+	/* Update the number of hits */
+	updateHits(calleeName, callerName);
+}
+
+function profileEndInFunction(callee, startTime) {
+	var curTime = +new Date();
+	if(callee === undefined) {
+		return;
+	} 
+	var calleeName = callee.name;
+	functionStats[calleeName].timeOfExec += (curTime - startTime);
+}
+
+/* Update no. of hits for each function call */
+function updateHits(calleeName, callerName) {
+	/* Update hits of function pairs if caller is defined */
+	if(callerName !== undefined) {
+		functionStats[calleeName].callers[callerName].hits += 1;
+	}
+	functionStats[calleeName].hits += 1; 
+}
+
+/* Shows all results. Exec times, frequency of calls etc */
+function showResults() {
+	/* Print execution times for each function */
+	debugLog("Execution times for individual functions:");
+	for (var key in functionStats) {
+		debugLog("ExecTime: " + functionStats[key].timeOfExec + "ms for " +
+			functionStats[key].name+"()");
+	}
+
+	/* Frequency of calls for each function*/
+	debugLog("<br>Frequency of calls for each function");
+	for (var key in functionStats){
+		debugLog("Hits : " + functionStats[key].hits +
+			" ms for " + functionStats[key].name+"()");
+	}
+
+	/* Print all functions pairs and number of their hits */
+	debugLog("<br>Edges between caller and callee functions and frequency of calls:")
+	for (var key in functionStats){
+		for (var key2 in functionStats[key].callers) {
+			debugLog("Calls: " + functionStats[key].callers[key2].hits + 
+				" from "+ functionStats[key].callers[key2].name + "()-->" + 
+				functionStats[key].name + "()");
+		}
+	}	
 }
