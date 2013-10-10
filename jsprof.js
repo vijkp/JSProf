@@ -19,12 +19,14 @@ function main(contents)
 
 function listFunctionsInFile(contents) {
 	functionList = [];
-	//functionCallerList = "Function call list (callee, caller) pairs: <br>";	
-	//functionCallerList += "Funtion callee: " + arguments.callee.name + " " + 
-	//					  "Funtion caller: " + arguments.callee.caller.name + "<br>";
+
+	/* Parse the code and rewrite it to the standard form that we are going to use */
+	var optionsToRewrite = {"comment":true,"format":{"indent":{"style":"    "},"quotes":"single"}};
+	var toRewrite = esprima.parse(contents, {range: true, loc: true});
+	code = window.escodegen.generate(toRewrite, optionsToRewrite);
 
 	functionListString = "List of Functions with their start and end line numbers: <br>";
-	parseout = esprima.parse(contents,  {range: true, loc: true});
+	parseout = esprima.parse(code,  {range: true, loc: true});
 	var list = parseout.body;	
 	numberOfFunctions = 0;
 	listFunctionsRecursive(list);
@@ -34,7 +36,6 @@ function listFunctionsInFile(contents) {
 	
 	/* Format functionList into readabe form */
 	for (key in functionList){
-		
 		functionListString += 	functionList[key].name  + ", " +
 								functionList[key].lstart+ ", " +
 								functionList[key].lend  + "<br>";
@@ -44,9 +45,6 @@ function listFunctionsInFile(contents) {
 }
 
 function listFunctionsRecursive(list) {
-	//functionCallerList += "Funtion callee: " + arguments.callee.name + " " + 
-	//					  "Funtion caller: " + arguments.callee.caller.name + "<br>";
-
 	var obj = {};
 	for (var key in list) {
 		if (list.hasOwnProperty(key)){
@@ -54,11 +52,9 @@ function listFunctionsRecursive(list) {
 			switch (obj.type)
 			{
 				case "FunctionDeclaration":
-					console.log("function "+ obj.id.name);
-					functionList[numberOfFunctions] = {"name": obj.id.name, 
+					functionList[obj.id.name] = {"name": obj.id.name, 
 													   "lstart": obj.loc.start.line, 
 													   "lend": obj.loc.end.line};
-					numberOfFunctions++;
 					listFunctionsRecursive(obj.body.body);
 					break;
 				case "VariableDeclaration":
@@ -66,16 +62,14 @@ function listFunctionsRecursive(list) {
 					break;
 				case "VariableDeclarator":
 					if (obj.init.type === "FunctionExpression") {
-						console.log("VariableDeclarator "); console.log(obj.id.name);
-						functionList[numberOfFunctions] = {"name": obj.id.name, 
+						functionList[obj.id.name] = {"name": obj.id.name, 
 													       "lstart": obj.init.loc.start.line, 
 													   	   "lend": obj.init.loc.end.line};
-						numberOfFunctions++;
 						listFunctionsRecursive(obj.init.body.body);
 					}
 					break;
 				default:
-					console.log("do nothing " + obj.type)
+					//do nothing
 			}
 		}
 	}
@@ -95,7 +89,6 @@ function listFunctionCallsRecursively(list)
 	for (var key in list) 
 	{
 		obj = list[key];
-		console.log(obj.type);
 		if(obj.type == "ExpressionStatement")
 		{
 				var expr = obj.expression;
