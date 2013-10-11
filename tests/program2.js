@@ -1,10 +1,19 @@
 var abc = 0;
+var umass;
+umass = function(){
+	function student(){
+		return 0;
+	}
+	return "vijay";
+};
+
 
 function not(x,y) {
 	abc = x+y;
 	max(2,3);
 	sub(2,3);
 	sub(2,3);
+	return sub(2,3);
 }
 
 function max(x,y) {
@@ -32,4 +41,5 @@ function sub(x,y) {
 }
 
 not(2,3);
-
+console.log(umass());
+console.log(umass());

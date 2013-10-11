@@ -34,7 +34,7 @@
                 <h3> Test </h3>
                 <p> Select a .js file to profile </p>
                 <input type="file" id="fileinput" />
-                <p> Results: </p>
+                <p> Log: </p>
                 <div id="output_box">
                     <div id="output"></div>
                 </div>
@@ -53,7 +53,7 @@
                     var r = new FileReader();
                     r.onload = function(e) { 
                         var contents = e.target.result;
-                        functionListString = main(contents);
+                        functionListString = jsprofile(contents);
                         document.getElementById('output').innerHTML = functionListString;
                     }
                     r.readAsText(f);
