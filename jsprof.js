@@ -1,6 +1,6 @@
-//==============================================================================================================
+//=================================================================================================
 //JSProf - Javascript profiler written in Javascript
-//==============================================================================================================
+//=================================================================================================
 /* 
  * This function lists the functions from the text 'contents' 
  *TODO: Remove globals*/
@@ -13,33 +13,37 @@ var functionListString = "";
 var functionStats = [];
 
 /* Test code for instrumentation */
-var startCode = "var startTime = +new Date();profileStartInFunction(arguments.callee, arguments.callee.caller);";
+var startCode = "var startTime = +new Date();profileStartInFunction(arguments.callee, 
+					arguments.callee.caller);";
 var endCode   = "profileEndInFunction(arguments.callee, startTime);";
 
-//==============================================================================================================
+//=================================================================================================
 //Main function
-//==============================================================================================================
+//=================================================================================================
 function main(contents)
 {
 	cleanedCode = rewriteCode(contents);
 	listFunctionsInFile(cleanedCode);
 	cleanedCode = instrument(cleanedCode);
+	//console.log(cleanedCode);
 	eval(cleanedCode);
 	showResults();
 	return functionListString;
 }
 
-/* Debug function to print on the output box in browser */
+//=================================================================================================
+//Debug function to print on the output box in browser 
+//=================================================================================================
 function debugLog(string) {
 	functionListString += string + "<br>"; 
 	document.getElementById('output').innerHTML = functionListString;
 	console.log(string);
 }
 
-//===============================================================================================================
-//Every programmer formats code in a different way. This function is used to format the code in a specific way
-//such that the input code is universally understandable.
-//===============================================================================================================
+//=================================================================================================
+//Every programmer formats code in a different way. This function is used to format the code 
+//in a specific way such that the input code is universally understandable.
+//=================================================================================================
 function rewriteCode(contents)
 {
 	/* Parse the code and rewrite it to the standard form that we are going to use */
@@ -49,11 +53,11 @@ function rewriteCode(contents)
 	return cleanedCode;
 }
 
-//==============================================================================================================
-//Function to list all the functions in the input file and note down the start and end line numbers of the function
-//definition. The object that is used to store the function specific data is in the form
-//{"name" : "lstart", "lend"}
-//==============================================================================================================
+//=================================================================================================
+//Function to list all the functions in the input file and note down the start and end line 
+//numbers of the function definition. The object that is used to store the function specific data 
+//is in the form {"name" : "lstart", "lend"}
+//=================================================================================================
 function listFunctionsInFile(cleanedCode) 
 {
 	functionList = [];
@@ -63,9 +67,10 @@ function listFunctionsInFile(cleanedCode)
 	listFunctionsRecursive(list);
 }
 
-//==============================================================================================================
-//Function that recursively looks into the input code and gets the definitions of the functions in the code
-//==============================================================================================================
+//=================================================================================================
+//Function that recursively looks into the input code and gets the definitions of the functions 
+//in the code
+//=================================================================================================
 function listFunctionsRecursive(list) 
 {
 	var obj = {};
@@ -77,8 +82,8 @@ function listFunctionsRecursive(list)
 			switch (obj.type)
 			{
 				case "FunctionDeclaration":
-					/*In our design we like the input code to be in an array. Esprima gives the line numbers
-					starting from 1, hence we subtract the line numbers by 1*/
+					/*In our design we like the input code to be in an array. Esprima gives the 
+					line numbers starting from 1, hence we subtract the line numbers by 1*/
 					functionList[obj.id.name] = {"name": obj.id.name, 
 													   "lstart": obj.loc.start.line-1, 
 													   "lend": obj.loc.end.line-1};
@@ -102,9 +107,9 @@ function listFunctionsRecursive(list)
 	}
 }
 
-//==============================================================================================================
+//=================================================================================================
 //Function to fill up a list with all the positions where functions are defined
-//==============================================================================================================
+//=================================================================================================
 function sortFunctionPositions(linesOfCode)
 {
 	var positionList = [];
@@ -117,9 +122,9 @@ function sortFunctionPositions(linesOfCode)
 	return positionList;
 }
 
-//==============================================================================================================
+//=================================================================================================
 //Function to deal with return statements being strewn in the function definition
-//==============================================================================================================
+//=================================================================================================
 function dealWithReturnStatements(code)
 {
 	for(var i=0; i<code.length; i++)
@@ -160,9 +165,9 @@ function dealWithReturnStatements(code)
 	return code;
 }
 
-//==============================================================================================================
+//=================================================================================================
 //Converts the code array into a string
-//==============================================================================================================
+//=================================================================================================
 function getStringCode(code)
 {
 	/* Testing how the output looks. Looks cleaner than when you use JSON.stringify */
@@ -175,9 +180,9 @@ function getStringCode(code)
 	return rewriteCode(cc);
 }
 
-//==============================================================================================================
+//=================================================================================================
 //Function to add instrumentation to the code
-//==============================================================================================================
+//=================================================================================================
 function instrument(cleanedCode)
 {
 	var code = cleanedCode.split("\n");
@@ -201,9 +206,9 @@ function instrument(cleanedCode)
 	return getStringCode(code);
 }
 
-//==============================================================================================================
+//=================================================================================================
 //Function that is inserted at start of every function definition
-//==============================================================================================================
+//=================================================================================================
 function profileStartInFunction(callee, caller) {
 	var calleeName;
 	var callerName;
@@ -244,9 +249,9 @@ function profileStartInFunction(callee, caller) {
 	updateHits(calleeName, callerName);
 }
 
-//==============================================================================================================
+//=================================================================================================
 //Function inserted at end of every function definition
-//==============================================================================================================
+//=================================================================================================
 function profileEndInFunction(callee, startTime) {
 	var curTime = +new Date();
 	if(callee === undefined) {
@@ -256,9 +261,9 @@ function profileEndInFunction(callee, startTime) {
 	functionStats[calleeName].timeOfExec += (curTime - startTime);
 }
 
-//==============================================================================================================
+//=================================================================================================
 //Function to update no. of hits for each function call 
-//==============================================================================================================
+//=================================================================================================
 function updateHits(calleeName, callerName) {
 	/* Update hits of function pairs if caller is defined */
 	if(callerName !== undefined) {
@@ -267,9 +272,17 @@ function updateHits(calleeName, callerName) {
 	functionStats[calleeName].hits += 1; 
 }
 
-//==============================================================================================================
+//=================================================================================================
+//Function to compute hot paths
+//=================================================================================================
+function computeHotPaths()
+{
+
+}
+
+//=================================================================================================
 // Fuction that shows all results. Exec times, frequency of calls etc 
-//==============================================================================================================
+//=================================================================================================
 function showResults() {
 	/* Print execution times for each function */
 	debugLog("Execution times for individual functions:");
@@ -293,5 +306,8 @@ function showResults() {
 				" from "+ functionStats[key].callers[key2].name + "()-->" + 
 				functionStats[key].name + "()");
 		}
-	}	
+	}
+
+	/* Print hot paths */
+	computeHotPaths();	
 }
