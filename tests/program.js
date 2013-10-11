@@ -4,7 +4,7 @@ var answer = 6 * 7;
 function add(x,y) {	return x+y;
 }
 
-function substract(x,y) {	return x-y;
+function substract(x,y) {	add(x,y);return x-y;
 }
 
 function multiply(x,y) {
@@ -37,7 +37,10 @@ return x*y; }
 function max(x,y) {
 	return x;}
 
-console.log(add(2,3));
-console.log(substract(3,2));
-console.log(multiply(2,3));
+//add(2,3));
+//console.log(substract(3,2));
+//console.log(multiply(2,3));
+add(2,3);
+substract(2,3);
+multiply(2,3);
 max(3,2);

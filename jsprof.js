@@ -23,7 +23,7 @@ function main(contents)
 {
 	cleanedCode = rewriteCode(contents);
 	listFunctionsInFile(cleanedCode);
-	instrument(cleanedCode);
+	cleanedCode = instrument(cleanedCode);
 	eval(cleanedCode);
 	showResults();
 	return functionListString;
@@ -35,6 +35,7 @@ function debugLog(string) {
 	document.getElementById('output').innerHTML = functionListString;
 	console.log(string);
 }
+
 //===============================================================================================================
 //Every programmer formats code in a different way. This function is used to format the code in a specific way
 //such that the input code is universally understandable.
@@ -117,6 +118,64 @@ function sortFunctionPositions(linesOfCode)
 }
 
 //==============================================================================================================
+//Function to deal with return statements being strewn in the function definition
+//==============================================================================================================
+function dealWithReturnStatements(code)
+{
+	for(var i=0; i<code.length; i++)
+	{
+		if(code[i].indexOf("return ") != -1)
+		{
+			/* Function is returning another function */
+			if(code[i].indexOf("(") != -1)
+			{
+				/* Function returned is not an anonymous function */
+				if(code[i].indexOf("function") == -1)
+				{
+					code[i] = code[i].replace("return " , "var JSProfTemp = ");
+					code[i] = code[i] + " " + endCode + " return JSProfTemp;";
+				}
+				/*Function returned is an anonymous function */
+				else
+				{
+					/*All you need to do is increment i till you find end of function definition*/
+					code[i] = code[i].replace("return " , "var JSProfTemp = ");
+					while(code[i].indexOf(" };") == -1)
+					{
+						i++;
+					}
+					
+					code[i] = code[i] + " " + endCode + " return JSProfTemp;";
+				}
+			}
+
+			/* Normal return values */	
+			else
+			{
+				code[i] = " " + endCode + code[i];
+			}
+		}
+	}
+
+	return code;
+}
+
+//==============================================================================================================
+//Converts the code array into a string
+//==============================================================================================================
+function getStringCode(code)
+{
+	/* Testing how the output looks. Looks cleaner than when you use JSON.stringify */
+	var cc = "";
+	for(var z in code)
+	{
+		cc = cc + code[z];
+
+	}
+	return rewriteCode(cc);
+}
+
+//==============================================================================================================
 //Function to add instrumentation to the code
 //==============================================================================================================
 function instrument(cleanedCode)
@@ -129,34 +188,22 @@ function instrument(cleanedCode)
 	{
 		if(positionList[i].position === "start")
 		{
-			code[i] = code[i] + startCode;
+			code[i] = code[i] + " " + startCode;
 		}
 		else if(positionList[i].position === "end")
 		{
-			code[i] = endCode + code[i];
+			code[i] = endCode + " " + code[i];
 		}
 	}
 
 	/* Deal with return statements being strewn in the function definition */
-	for(var i in code)
-	{
-		if(code[i].indexOf("return ") != -1)
-		{
-			/* Insert endCode for that line as well */
-			code[i] = endCode + code[i];
-		}
-	}
-
-	/* Testing how the output looks. Looks cleaner than when you use JSON.stringify */
-	var cc = "";
-	for(var z in code)
-	{
-		cc = cc + code[z];
-
-	}
-	rewriteCode(cc);
+	code = dealWithReturnStatements(code);
+	return getStringCode(code);
 }
 
+//==============================================================================================================
+//Function that is inserted at start of every function definition
+//==============================================================================================================
 function profileStartInFunction(callee, caller) {
 	var calleeName;
 	var callerName;
@@ -197,6 +244,9 @@ function profileStartInFunction(callee, caller) {
 	updateHits(calleeName, callerName);
 }
 
+//==============================================================================================================
+//Function inserted at end of every function definition
+//==============================================================================================================
 function profileEndInFunction(callee, startTime) {
 	var curTime = +new Date();
 	if(callee === undefined) {
@@ -206,7 +256,9 @@ function profileEndInFunction(callee, startTime) {
 	functionStats[calleeName].timeOfExec += (curTime - startTime);
 }
 
-/* Update no. of hits for each function call */
+//==============================================================================================================
+//Function to update no. of hits for each function call 
+//==============================================================================================================
 function updateHits(calleeName, callerName) {
 	/* Update hits of function pairs if caller is defined */
 	if(callerName !== undefined) {
@@ -215,7 +267,9 @@ function updateHits(calleeName, callerName) {
 	functionStats[calleeName].hits += 1; 
 }
 
-/* Shows all results. Exec times, frequency of calls etc */
+//==============================================================================================================
+// Fuction that shows all results. Exec times, frequency of calls etc 
+//==============================================================================================================
 function showResults() {
 	/* Print execution times for each function */
 	debugLog("Execution times for individual functions:");

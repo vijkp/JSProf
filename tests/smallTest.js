@@ -1,14 +1,17 @@
 function returnTest()
 {
 	var x=10;
-	if(x<5)
+	if(x==3)
 	{
-		var returnR = 0;
-		return 4;
+		return (0);
+	}
+	else if(x==1)
+	{
+		return abc();
 	}
 	else
-	{
-		return 3;
-	}
-	return 2;
+		return 1;
+	return function () {
+        var x = 5;
+    };
 }
