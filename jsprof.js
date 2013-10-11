@@ -20,19 +20,27 @@ var endCode   = "profileEndInFunction(arguments.callee, startTime);";
 //=================================================================================================
 function jsprofile(contents)
 {
+	/* Clear all the globals before each run */
+	numberOfFunctions = 0;
+	numberOfFunctionCalls = 0;
+	functionList = [];
+	callerCalleeList = [];
 	functionListString = "";
+	functionStats = [];
+
 	var cleanedCode = rewriteCode(contents);
 	if (cleanedCode&& listFunctionsInFile(cleanedCode)) {
-		debugLog(functionList);
+		console.log(functionList);
 		cleanedCode = instrumentCode(cleanedCode);
-		debugLog(cleanedCode);
 		eval(cleanedCode);
 		showResults();	
 	}	
 	return functionListString;
 }
 
-/* Debug function to print on the output box in browser */
+//=================================================================================================
+// Debug function to print on the output box in browser 
+//=================================================================================================
 function debugLog(string) {
 	functionListString += string + "<br>"; 
 	document.getElementById('output').innerHTML = functionListString;
@@ -129,7 +137,6 @@ function listFunctionsRecursive(list)
 							functionList[functionName] = {"name": functionName,
 									"lstart": obj.expression.right.loc.start.line -1,
 								 	"lend": obj.expression.right.loc.end.line-1};
-							debugLog("function expression found :" + functionName);
 							listFunctionsRecursive(obj.expression.right.body.body);
 						}
 					}
@@ -327,6 +334,14 @@ function updateHits(calleeName, callerName) {
 }
 
 //=================================================================================================
+//Function to compute hot paths
+//=================================================================================================
+function computeHotPaths()
+{
+
+}
+
+//=================================================================================================
 // Fuction that shows all results. Exec times, frequency of calls etc 
 //=================================================================================================
 function showResults() {
@@ -352,5 +367,8 @@ function showResults() {
 				" from "+ functionStats[key].callers[key2].name + "()-->" + 
 				functionStats[key].name + "()");
 		}
-	}	
+	}
+
+	/* Print hot paths */
+	computeHotPaths();	
 }
