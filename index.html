@@ -10,9 +10,11 @@
         <script type="text/javascript" src='lib/esprima.js'></script>
         <script type="text/javascript" src='lib/escodegen.browser.js'></script>
         <script type="text/javascript" src='jsprof.js'></script>
+        <script type="text/javascript" src="d3.v3.min.js"></script>
+        <script type="text/javascript" src="graph.js"></script>
 
         <div id="wrap">    
-            <div id="header"><h1>JSProf</h1></div>
+            <div id="header"><h2>JSProf</h2></div>
             <div id="nav">
                 <ul>
                     <li><a href="#">Option 1</a></li>
@@ -32,16 +34,18 @@
             </div>
             <div id="testbed">
                 <h3> Test </h3>
-                <p> Select a .js file to profile </p>
-                <input type="file" id="fileinput" />
+                <p> Select a .js file to profile <input type="file" id="fileinput" /></p>
+                <p> or choose from the following list </p>
                 <p> Log: </p>
                 <div id="output_box">
                     <div id="output"></div>
                 </div>
+                <svg id="svggraph">
+                </svg>
             </div>
 
             <div id="footer">
-                <p> HTML5 | 10/10/2013 </p>
+                <p> HTML5 | 10/11/2013 </p>
             </div>
         </div>
         <!-- Javascript in this file -->

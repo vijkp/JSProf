@@ -9,6 +9,7 @@ var functionList = [];
 var callerCalleeList = [];
 var functionListString = "";
 var functionStats = [];
+var positionList = [];
 
 /* Test code for instrumentation */
 var startCode = "var startTime = +new Date(); profileStartInFunction(arguments.callee," + 
@@ -27,12 +28,15 @@ function jsprofile(contents)
 	callerCalleeList = [];
 	functionListString = "";
 	functionStats = [];
+	positionList = [];
 
 	var cleanedCode = rewriteCode(contents);
 	if (cleanedCode&& listFunctionsInFile(cleanedCode)) {
-		console.log(functionList);
 		cleanedCode = instrumentCode(cleanedCode);
+		console.log(functionList);
+		console.log(cleanedCode);
 		eval(cleanedCode);
+		console.log(functionStats);
 		showResults();	
 	}	
 	return functionListString;
@@ -177,8 +181,8 @@ function sortFunctionPositions(linesOfCode)
 	
 	for(var i in functionList)
 	{
-		positionList[functionList[i].lstart] = {"position" : "start"};
-		positionList[functionList[i].lend] = {"position" : "end"};
+		positionList[functionList[i].lstart] = {"name": functionList[i].name, "position" : "start"};
+		positionList[functionList[i].lend] = {"name": functionList[i].name, "position" : "end"};
 	}
 	return positionList;
 }
@@ -198,6 +202,8 @@ function dealWithReturnStatements(code)
 				/* Function returned is not an anonymous function */
 				if(code[i].indexOf("function") == -1)
 				{
+
+					endCode = findAndGetFunctionName(code, i);
 					code[i] = code[i].replace("return " , "var JSProfTemp = ");
 					code[i] = code[i] + " " + endCode + " return JSProfTemp;";
 				}
@@ -210,7 +216,7 @@ function dealWithReturnStatements(code)
 					{
 						i++;
 					}
-					
+					endCode = findAndGetFunctionName(code, i);
 					code[i] = code[i] + " " + endCode + " return JSProfTemp;";
 				}
 			}
@@ -218,12 +224,28 @@ function dealWithReturnStatements(code)
 			/* Normal return values */	
 			else
 			{
+				endCode = findAndGetFunctionName(code, i);
 				code[i] = " " + endCode + code[i];
 			}
 		}
 	}
 
 	return code;
+}
+
+function findAndGetFunctionName(code, i) {
+	var endCode;
+	
+	while (positionList[i] === undefined) {
+		if (i == positionList.length) {
+			return ";";
+		}
+		i++;
+	}
+	if(positionList[i].position === "end") {
+		endCode = "profileEndInFunction(\"" + positionList[i].name + "\", startTime);";
+		return endCode;
+	}
 }
 
 //=================================================================================================
@@ -247,17 +269,22 @@ function getStringCode(code)
 function instrumentCode(cleanedCode)
 {
 	var code = cleanedCode.split("\n");
-	var positionList = sortFunctionPositions(code.size);
+	positionList = sortFunctionPositions(code.size);
 
 	/* Inserting startCode and endCode in every function definition */
 	for(var i in positionList)
 	{
 		if(positionList[i].position === "start")
 		{
+			startCode = "var startTime = +new Date(); profileStartInFunction(\"" +
+				positionList[i].name + "\",arguments.callee.caller);";
 			code[i] = code[i] + " " + startCode;
 		}
 		else if(positionList[i].position === "end")
 		{
+			endCode = "profileEndInFunction(\""+ positionList[i].name + 
+				"\", startTime);";
+
 			code[i] = endCode + " " + code[i];
 		}
 	}
@@ -270,18 +297,10 @@ function instrumentCode(cleanedCode)
 //=================================================================================================
 // Function that is inserted at the start of every function definition
 //=================================================================================================
-function profileStartInFunction(callee, caller) {
-	var calleeName;
+function profileStartInFunction(calleeName, caller) {
 	var callerName;
 	var timestamp = +new Date();
 	
-	if(callee) {
-		calleeName = callee.name;  // May not work in IE  
-	} else {
-		debugLog("Funtion not defined");
-		return;
-	}
-
 	if(caller) {
 		callerName = caller.name;
 	} else {
@@ -313,12 +332,12 @@ function profileStartInFunction(callee, caller) {
 //=================================================================================================
 // Function inserted at the end of every function definition
 //=================================================================================================
-function profileEndInFunction(callee, startTime) {
+function profileEndInFunction(calleeName, startTime) {
 	var curTime = +new Date();
-	if(callee === undefined) {
+	if (calleeName === undefined) {
 		return;
 	} 
-	var calleeName = callee.name;
+	console.log(calleeName);
 	functionStats[calleeName].timeOfExec += (curTime - startTime);
 }
 
@@ -348,24 +367,32 @@ function showResults() {
 	/* Print execution times for each function */
 	debugLog("Execution times for individual functions:");
 	for (var key in functionStats) {
-		debugLog("ExecTime: " + functionStats[key].timeOfExec + "ms for " +
-			functionStats[key].name+"()");
+		if (functionStats.hasOwnProperty(key)){
+			debugLog("ExecTime: " + functionStats[key].timeOfExec + "ms for " +
+				functionStats[key].name+"()");
+		}
 	}
 
 	/* Frequency of calls for each function*/
 	debugLog("<br>Frequency of calls for each function");
 	for (var key in functionStats){
-		debugLog("Hits: " + functionStats[key].hits +
-			" for " + functionStats[key].name+"()");
+		if (functionStats.hasOwnProperty(key)){
+			debugLog("Hits: " + functionStats[key].hits +
+				" for " + functionStats[key].name+"()");
+		}	
 	}
 
 	/* Print all functions pairs and number of their hits */
 	debugLog("<br>Edges between caller and callee functions and frequency of calls:")
 	for (var key in functionStats){
-		for (var key2 in functionStats[key].callers) {
-			debugLog("Calls: " + functionStats[key].callers[key2].hits + 
-				" from "+ functionStats[key].callers[key2].name + "()-->" + 
-				functionStats[key].name + "()");
+		if (functionStats.hasOwnProperty(key)){
+			for (var key2 in functionStats[key].callers) {
+				//if (functionStats[key].callers.hasOwnProperty[key2]){
+					debugLog("Calls: " + functionStats[key].callers[key2].hits + 
+						" from "+ functionStats[key].callers[key2].name + "()-->" + 
+						functionStats[key].name + "()");
+				//}
+			}
 		}
 	}
 

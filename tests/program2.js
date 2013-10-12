@@ -4,7 +4,7 @@ umass = function(){
 	function student(){
 		return 0;
 	}
-	return "vijay";
+	
 };
 
 
