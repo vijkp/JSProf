@@ -314,7 +314,6 @@ function profileStartInFunction(calleeName, caller) {
 									 "callers"   : [],
 									 "hits"      : 0,
 									 "timeOfExec": 0};
-		console.log("bitch please " + calleeName+ " " + caller.name);
 	}
 
 	/* Now, check if callee's object has caller entry */
