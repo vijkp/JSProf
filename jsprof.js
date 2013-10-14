@@ -33,8 +33,6 @@ function jsprofile(contents)
 	var cleanedCode = rewriteCode(contents);
 	if (cleanedCode&& listFunctionsInFile(cleanedCode)) {
 		cleanedCode = instrumentCode(cleanedCode);
-		console.log(functionList);
-		console.log(cleanedCode);
 		eval(cleanedCode);
 		console.log(functionStats);
 		showResults();	
@@ -62,13 +60,13 @@ function rewriteCode(contents)
 	var optionsToRewrite = {"comment":true,"format":{"indent":{"style":"    "},"quotes":"single"}};
 	try {
 		toRewrite = esprima.parse(contents, {range: true, loc: true});
-		cleanedCode = window.escodegen.generate(toRewrite, optionsToRewrite);
 	} catch(e) {
 		str = e.name + ": " + "rewriteCode"+ e.message;
 		debugLog(str);
 		cleanedCode = null;	
 		/* XXX: Show the error on the screen too. */
 	}
+	cleanedCode = window.escodegen.generate(toRewrite, optionsToRewrite);
 	return cleanedCode;
 }
 
@@ -316,6 +314,7 @@ function profileStartInFunction(calleeName, caller) {
 									 "callers"   : [],
 									 "hits"      : 0,
 									 "timeOfExec": 0};
+		console.log("bitch please " + calleeName+ " " + caller.name);
 	}
 
 	/* Now, check if callee's object has caller entry */
@@ -387,11 +386,11 @@ function showResults() {
 	for (var key in functionStats){
 		if (functionStats.hasOwnProperty(key)){
 			for (var key2 in functionStats[key].callers) {
-				//if (functionStats[key].callers.hasOwnProperty[key2]){
+				if (functionStats[key].callers.hasOwnProperty(key2)){
 					debugLog("Calls: " + functionStats[key].callers[key2].hits + 
 						" from "+ functionStats[key].callers[key2].name + "()-->" + 
 						functionStats[key].name + "()");
-				//}
+				}
 			}
 		}
 	}
