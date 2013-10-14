@@ -49,6 +49,7 @@ function jsprofile(contents)
 	if (cleanedCode&& listFunctionsInFile(cleanedCode)) {
 		cleanedCode = instrumentCode(cleanedCode);
 		eval(cleanedCode);
+		console.log(funcTree);
 		showResults();	
 	}	
 	return functionListString;
@@ -565,6 +566,27 @@ function computeHotPaths(treeList)
 	}
 }
 
+var treeTopDownList = [];
+
+function printTreeTopDown(funcTree, level) {
+	var curNode = funcTree;
+	var treeTopDownListNode = {};
+	if(curNode !== undefined) {
+		if (curNode.isInstrumented) {
+			/* Print current node with level information */
+			treeTopDownListNode = {	"name": curNode.name,
+									"level": level,
+									"totalTime": curNode.time};
+			treeTopDownList.push(treeTopDownListNode);
+		}
+		for (var key in curNode.child) {
+			if (curNode.child.hasOwnProperty(key)) {
+				printTreeTopDown(curNode.child[key], level+1);
+			}	
+		}	
+	}
+}
+
 //=================================================================================================
 // Function that shows all results. Exec times, frequency of calls etc 
 //=================================================================================================
@@ -577,6 +599,13 @@ function showResults() {
 				functionStats[key].name+"()");
 		}
 	}
+
+	treeTopDownList = [];
+	printTreeTopDown(funcTree, 0);
+	console.log(treeTopDownList);
+
+	printTable();
+
 
 	/* Frequency of calls for each function*/
 	debugLog("<br>Frequency of calls for each function");
@@ -603,4 +632,78 @@ function showResults() {
 
 	/* Print hot paths */
 	//computeHotPaths();	
+}
+
+function printTable() {
+	var table = document.createElement("table");
+	var tableBody = document.createElement("tbody");
+	var row = document.createElement("tr");
+	
+	var cell = document.createElement("td");
+	var cellText = document.createTextNode("TotalTime ");
+
+	/* Clear the old table */
+	var tablediv = document.getElementById('tablediv');
+	clearArray(tablediv); // Doesn't work
+	console.log(tablediv);
+
+	cell.appendChild(cellText);
+	row.appendChild(cell);
+
+	cell = document.createElement("td");
+	cellText = document.createTextNode("Level");
+	cell.appendChild(cellText);
+	row.appendChild(cell);
+
+	cell = document.createElement("td");
+	cell.setAttribute('style', "text-align: left");
+	cellText = document.createTextNode("Function Name");
+	cell.appendChild(cellText);
+	row.appendChild(cell);
+
+	tableBody.appendChild(row);
+	table.appendChild(tableBody);
+
+	for (var key in treeTopDownList) {
+		if (treeTopDownList.hasOwnProperty(key)){
+			row = document.createElement("tr");
+
+			cell = document.createElement("td");
+			cellText = document.createTextNode(treeTopDownList[key].totalTime + " ms");
+			cell.appendChild(cellText);
+			row.appendChild(cell);	
+
+			cell = document.createElement("td");
+			cellText = document.createTextNode(treeTopDownList[key].level-4);
+			cell.appendChild(cellText);
+			row.appendChild(cell);	
+
+			cell = document.createElement("td");
+			var i = 0, str = "";
+			var level = treeTopDownList[key].level - 4;
+			if (level > 0) {
+				for (i = 0; i < (level-1); i++) {
+					str += 	"     ";
+				}
+				str += ("  |--" + treeTopDownList[key].name);
+			} else {
+				str = treeTopDownList[key].name;
+			}
+			cell.setAttribute('style', "text-align: left");
+			cellText = document.createTextNode(str);
+			cell.appendChild(cellText);
+			row.appendChild(cell);	
+
+			tableBody.appendChild(row);
+			table.appendChild(tableBody);
+		}
+	}
+	tablediv.appendChild(table);
+}
+
+/* Use this function to clear all elements in an array */
+function clearArray(array) {
+  while (array.length > 0) {
+    array.pop();
+  }
 }
