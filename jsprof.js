@@ -11,45 +11,16 @@ var functionListString = "";
 var functionStats = [];
 var pathTreeString = "";
 var positionList = [];
+
 var pathMatrix = {};
 var warshallsMatrix = {};
 
-var funcTree = { "name" : "jsprofile",
-				  "executionTime" : 6,
-				  "callee" : [{ "name" : "B",
-								  "executionTime" : 6,
-								    "callee" : [ {"name" : "F",
-													"executionTime" : 5,
-													  "callee" : [{ "name" : "A",
-													  				"executionTime" : 3,
-													  				"callee" : [{ "name" : "G",
-													  								"executionTime" : 1,
-													  								"callee" : []
-													  							},
-
-													  							{ "name" : "H",
-													  								"executionTime" : 2,
-													  								"callee" : []
-													  							}]
-
-													 			}]
-												 }, 
-												  {
-												  	"name" : "C",
-												  	"executionTime" : 1,
-												  	"callee" : []
-
-												  }]
-							}]
-					};
-
-
-						
-
+var funcTree = {};
+var currentNode = {};
 
 
 /* Test code for instrumentation */
-var startCode = "var startTime = +new Date(); profileStartInFunction(arguments.callee," + 
+var startCode = "var startTime = profileStartInFunction(arguments.callee," + 
 	            "arguments.callee.caller);";
 var endCode   = "profileEndInFunction(arguments.callee, startTime);";
 
@@ -67,19 +38,32 @@ function jsprofile(contents)
 	functionStats = [];
 	positionList = [];
 
-	//console.log(funcTree);
-	console.log(computeHotPaths(funcTree));
-	console.log("String: " + pathTreeString);
-	return 0;
+	funcTree = {"name": "root",
+				"time": 0,
+				"child": [],
+				"parent": {}};
+	currentNode = funcTree;
 
 	var cleanedCode = rewriteCode(contents);
 	if (cleanedCode&& listFunctionsInFile(cleanedCode)) {
 		cleanedCode = instrumentCode(cleanedCode);
+		console.log(cleanedCode);
 		eval(cleanedCode);
-		console.log(functionStats);
+		console.log(funcTree);
+		console.log(currentNode);
 		showResults();	
 	}	
 	return functionListString;
+}
+
+
+function isEmpty(obj) {
+    for(var prop in obj) {
+        if(obj.hasOwnProperty(prop))
+            return false;
+    }
+
+    return true;
 }
 
 //=================================================================================================
@@ -88,7 +72,7 @@ function jsprofile(contents)
 function debugLog(string) {
 	functionListString += string + "<br>"; 
 	document.getElementById('output').innerHTML = functionListString;
-	console.log(string);
+	//console.log(string);
 }
 
 //=================================================================================================
@@ -316,7 +300,7 @@ function instrumentCode(cleanedCode)
 	{
 		if(positionList[i].position === "start")
 		{
-			startCode = "var startTime = +new Date(); profileStartInFunction(\"" +
+			startCode = "var startTime =  profileStartInFunction(\"" +
 				positionList[i].name + "\",arguments.callee.caller);";
 			code[i] = code[i] + " " + startCode;
 		}
@@ -334,18 +318,59 @@ function instrumentCode(cleanedCode)
 	return getStringCode(code);
 }
 
+function addNodeToFuncTree(callerNode, calleeName) {
+	var newNode = { "name": calleeName,
+					"time": 0,
+					"child": [],
+					"parent": callerNode}
+	callerNode.child.push(newNode);
+	return newNode;
+}
+
 //=================================================================================================
 // Function that is inserted at the start of every function definition
 //=================================================================================================
 function profileStartInFunction(calleeName, caller) {
 	var callerName;
-	var timestamp = +new Date();
+	var currentFunc;
+	var parentFunc;
+	var timestamp = -1;
+	var i = 0;
 	
 	if(caller) {
 		callerName = caller.name;
 	} else {
 		debugLog("Funtion caller not defined");
 	}
+
+	var trace = printStackTrace();
+	if (currentNode.name === "root") {
+		for (i = (trace.length - 1); i >= 0 ; i--){
+			var arr = trace[i].split(" ");
+			if (arr[0] === "profileStartInFunction") {
+				break;
+			}
+			currentNode = addNodeToFuncTree(currentNode, arr[0]);
+		}
+	}
+
+	for (i = 0; i < trace.length; i++){
+		var arr = trace[i].split(" ");
+		if (arr[0] === "profileStartInFunction") {
+			var arr2 = trace[i+1].split(" ");
+			currentFunc = arr2[0];
+			var arr3 = trace[i+2].split(" ");
+			parentFunc = arr3[0];
+			//console.log("caller: "+parentFunc+" callee: "+currentFunc);
+			currentNode = addNodeToFuncTree(currentNode, currentFunc);
+			break;
+		}
+	}
+
+	/* Store the current function in the functree in a variable current function. 
+	 * If it changes then build a new path from the root.
+	 * Root may change. so create a new root kind of and update the func tree.
+	 */
 
 	/* 
 	 * Check if this callee has an entry in functionStats variable, 
@@ -367,6 +392,8 @@ function profileStartInFunction(calleeName, caller) {
 	}
 	/* Update the number of hits */
 	updateHits(calleeName, callerName);
+	timestamp = +new Date();
+	return timestamp;
 }
 
 //=================================================================================================
@@ -378,7 +405,11 @@ function profileEndInFunction(calleeName, startTime) {
 		return;
 	} 
 	console.log(calleeName);
+	currentNode.time = (curTime - startTime);
+	console.log("currentNode time: "+ currentNode.time + " functionname: "+ currentNode.name + " parent name: "+currentNode.parent.name);
+	currentNode = currentNode.parent;
 	functionStats[calleeName].timeOfExec += (curTime - startTime);
+
 }
 
 //=================================================================================================

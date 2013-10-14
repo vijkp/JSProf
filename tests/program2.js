@@ -7,7 +7,6 @@ umass = function(){
 	
 };
 
-
 function not(x,y) {
 	abc = x+y;
 	max(2,3);
@@ -15,7 +14,6 @@ function not(x,y) {
 	sub(2,3);
 	return sub(2,3);
 }
-
 function max(x,y) {
 	var i=0;
 	abc = x+y;
@@ -24,14 +22,9 @@ function max(x,y) {
 		i += 1;
 	}
 }
-
 function add(x,y) {
 	abc = x+y;
-	max(2,3);
-	sub(2,3);
-	max(2,3);
-	sub(2,3);
-	max(2,3);
+	max(2,3);	
 	max(2,3);
 }
 
@@ -41,5 +34,4 @@ function sub(x,y) {
 }
 
 not(2,3);
-console.log(umass());
-console.log(umass());
+
