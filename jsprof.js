@@ -9,7 +9,44 @@ var functionList = [];
 var callerCalleeList = [];
 var functionListString = "";
 var functionStats = [];
+var pathTreeString = "";
 var positionList = [];
+var pathMatrix = {};
+var warshallsMatrix = {};
+
+var funcTree = { "name" : "jsprofile",
+				  "executionTime" : 6,
+				  "callee" : [{ "name" : "B",
+								  "executionTime" : 6,
+								    "callee" : [ {"name" : "F",
+													"executionTime" : 5,
+													  "callee" : [{ "name" : "A",
+													  				"executionTime" : 3,
+													  				"callee" : [{ "name" : "G",
+													  								"executionTime" : 1,
+													  								"callee" : []
+													  							},
+
+													  							{ "name" : "H",
+													  								"executionTime" : 2,
+													  								"callee" : []
+													  							}]
+
+													 			}]
+												 }, 
+												  {
+												  	"name" : "C",
+												  	"executionTime" : 1,
+												  	"callee" : []
+
+												  }]
+							}]
+					};
+
+
+						
+
+
 
 /* Test code for instrumentation */
 var startCode = "var startTime = +new Date(); profileStartInFunction(arguments.callee," + 
@@ -29,6 +66,11 @@ function jsprofile(contents)
 	functionListString = "";
 	functionStats = [];
 	positionList = [];
+
+	//console.log(funcTree);
+	console.log(computeHotPaths(funcTree));
+	console.log("String: " + pathTreeString);
+	return 0;
 
 	var cleanedCode = rewriteCode(contents);
 	if (cleanedCode&& listFunctionsInFile(cleanedCode)) {
@@ -351,15 +393,151 @@ function updateHits(calleeName, callerName) {
 }
 
 //=================================================================================================
-//Function to compute hot paths
+//This function is used to initialize the pathMatrix variable
 //=================================================================================================
-function computeHotPaths()
+function initializePathMatrix()
 {
+	var size = functionList.length;
+	pathMatrix = new Array(size);
+	for(var i = 0; i<size; i++)
+	{
+		pathMatrix[i] = new Array(size);
+		for (var j = 0; j < size ; j++) 
+    	{
+    	    pathMatrix[i][j] = 0;
+    	}
+	}
+}
+
+//=================================================================================================
+//Tweaking Warshall's algorithm to get the path with largest hits
+//=================================================================================================
+function warshalls()
+{
+	 
 
 }
 
 //=================================================================================================
-// Fuction that shows all results. Exec times, frequency of calls etc 
+// Transpose pathMatrix
+//=================================================================================================
+function transposePathMatrix()
+{
+	/* Transposing matrix for Warshall's algorithm */
+	var row = 0;
+	var col = 0;
+	for(var i in functionList)
+	{
+		col = 0;
+		for(var j in functionList)
+		{
+			if(col <= row)
+			{
+				var temp = pathMatrix[functionList[i].name][functionList[j].name]
+				pathMatrix[functionList[i].name][functionList[j].name] = pathMatrix[functionList[j].name][functionList[i].name];
+				pathMatrix[functionList[j].name][functionList[i].name] = temp;
+			}
+			col++;
+		}
+		row++;
+	}
+}
+
+//=================================================================================================
+//Function to compute hot paths
+//=================================================================================================
+/*function computeHotPaths()
+{
+	
+	/* 
+	 * Check if this callee has an entry in functionStats variable, 
+	 * add otherwise 
+	 */
+	/*if (functionStats[calleeName] === undefined) {
+		functionStats[calleeName] = {"name"      : calleeName,
+									 "callers"   : [],
+									 "hits"      : 0,
+									 "timeOfExec": 0};
+	}*/
+
+	/*for(var i in functionList)
+	{
+		for(var j in functionList)
+		{
+			//console.log(functionList[i].name + "and" + functionList[j].name);
+			if(!pathMatrix[functionList[i].name])
+			{
+				pathMatrix[functionList[i].name] = {};
+			}
+			pathMatrix[functionList[i].name][functionList[j].name] = 0;
+		}
+	}
+
+	for(var i in functionStats)
+	{
+		for(var j in functionStats[i].callers)
+		{
+			pathMatrix[functionStats[i].name][functionStats[i].callers[j].name] = functionStats[i].callers[j].hits;
+		}
+	}
+
+	transposePathMatrix();
+
+	/*for(var i in functionList)
+	{
+		for(var j in functionList)
+		{
+			console.log(functionList[i].name + "and" + functionList[j].name);
+			console.log(pathMatrix[functionList[i].name][functionList[j].name] + "");
+		}
+		console.log("\n");
+	}*/
+
+	/*warshalls();
+
+
+
+}*/
+
+
+
+//=================================================================================================
+// Function to compute hot paths
+//=================================================================================================
+function computeHotPaths(treeList)
+{
+	var maxExecTime = 0;
+	var maxExecFuncName = "null";
+	
+	for(var x in treeList.callee)
+	{
+		var temp = computeHotPaths(treeList.callee[x]);
+		if(temp > maxExecTime)
+		{
+			maxExecTime = temp;
+			maxExecFuncName = treeList.callee[x].name;
+		}
+	}
+
+	/* By the end of the loop maxExecTime will have the max exec time of all the callees of the current node */
+
+	/* Take care of leaf nodes */
+	if(!treeList.callee.length)
+	{
+		return treeList.executionTime;
+	}
+
+	/* For the rest of the nodes, add the current node's execution time as well */
+	else
+	{
+		pathTreeString = pathTreeString.replace(maxExecFuncName, "");
+		pathTreeString = pathTreeString + maxExecFuncName + "->" + treeList.name;
+		return maxExecTime + treeList.executionTime;
+	}
+}
+
+//=================================================================================================
+// Function that shows all results. Exec times, frequency of calls etc 
 //=================================================================================================
 function showResults() {
 	/* Print execution times for each function */
@@ -395,5 +573,5 @@ function showResults() {
 	}
 
 	/* Print hot paths */
-	computeHotPaths();	
+	//computeHotPaths();	
 }
