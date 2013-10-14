@@ -41,16 +41,14 @@ function jsprofile(contents)
 	funcTree = {"name": "root",
 				"time": 0,
 				"child": [],
-				"parent": {}};
+				"parent": {},
+				"isInstrumented": false};
 	currentNode = funcTree;
 
 	var cleanedCode = rewriteCode(contents);
 	if (cleanedCode&& listFunctionsInFile(cleanedCode)) {
 		cleanedCode = instrumentCode(cleanedCode);
-		console.log(cleanedCode);
 		eval(cleanedCode);
-		console.log(funcTree);
-		console.log(currentNode);
 		showResults();	
 	}	
 	return functionListString;
@@ -318,11 +316,12 @@ function instrumentCode(cleanedCode)
 	return getStringCode(code);
 }
 
-function addNodeToFuncTree(callerNode, calleeName) {
+function addNodeToFuncTree(callerNode, calleeName, isInstrumented) {
 	var newNode = { "name": calleeName,
 					"time": 0,
 					"child": [],
-					"parent": callerNode}
+					"parent": callerNode,
+					"isInstrumented": isInstrumented}
 	callerNode.child.push(newNode);
 	return newNode;
 }
@@ -350,23 +349,23 @@ function profileStartInFunction(calleeName, caller) {
 			if (arr[0] === "profileStartInFunction") {
 				break;
 			}
-			currentNode = addNodeToFuncTree(currentNode, arr[0]);
+			currentNode = addNodeToFuncTree(currentNode, arr[0], false);
+		}
+		currentNode.isInstrumented = true;
+	} else {
+		for (i = 0; i < trace.length; i++){
+			var arr = trace[i].split(" ");
+			if (arr[0] === "profileStartInFunction") {
+				var arr2 = trace[i+1].split(" ");
+				currentFunc = arr2[0];
+				var arr3 = trace[i+2].split(" ");
+				parentFunc = arr3[0];
+				//console.log("caller: "+parentFunc+" callee: "+currentFunc);
+				currentNode = addNodeToFuncTree(currentNode, currentFunc, true);
+				break;
+			}
 		}
 	}
-
-	for (i = 0; i < trace.length; i++){
-		var arr = trace[i].split(" ");
-		if (arr[0] === "profileStartInFunction") {
-			var arr2 = trace[i+1].split(" ");
-			currentFunc = arr2[0];
-			var arr3 = trace[i+2].split(" ");
-			parentFunc = arr3[0];
-			//console.log("caller: "+parentFunc+" callee: "+currentFunc);
-			currentNode = addNodeToFuncTree(currentNode, currentFunc);
-			break;
-		}
-	}
-
 	/* Store the current function in the functree in a variable current function. 
 	 * If it changes then build a new path from the root.
 	 * Root may change. so create a new root kind of and update the func tree.
@@ -404,12 +403,11 @@ function profileEndInFunction(calleeName, startTime) {
 	if (calleeName === undefined) {
 		return;
 	} 
-	console.log(calleeName);
 	currentNode.time = (curTime - startTime);
-	console.log("currentNode time: "+ currentNode.time + " functionname: "+ currentNode.name + " parent name: "+currentNode.parent.name);
 	currentNode = currentNode.parent;
-	functionStats[calleeName].timeOfExec += (curTime - startTime);
 
+
+	functionStats[calleeName].timeOfExec += (curTime - startTime);
 }
 
 //=================================================================================================
