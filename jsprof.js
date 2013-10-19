@@ -529,6 +529,7 @@ function printTreeTopDown(funcTree, level) {
 			/* Print current node with level information */
 			treeTopDownListNode = {	"name": curNode.name,
 									"level": level,
+									"selfTime": curNode.selfTime,
 									"totalTime": curNode.executionTime};
 			treeTopDownList.push(treeTopDownListNode);
 		}
@@ -555,7 +556,13 @@ function getCleanedTree(treeList)
 // Function that shows all results. Exec times, frequency of calls etc 
 //=================================================================================================
 function showResults() {
+	
 	/* Print execution times for each function */
+	/* Compute hot path */	
+	var treeList = getCleanedTree(funcTree);
+	computeSelfTime(treeList);
+	var maxExecTime = computeHotPaths(treeList);
+	
 	debugLog("Execution times for individual functions:");
 	for (var key in functionStats) {
 		if (functionStats.hasOwnProperty(key)){
@@ -565,7 +572,7 @@ function showResults() {
 	}
 
 	treeTopDownList = [];
-	printTreeTopDown(funcTree, 0);
+	printTreeTopDown(treeList, 0);
 	//console.log(treeTopDownList);
 
 	printTable();
@@ -593,11 +600,8 @@ function showResults() {
 		}
 	}
 
-	/* Compute and print hot path */	
-	var treeList = getCleanedTree(funcTree);
-	computeSelfTime(treeList);
-	console.log("Max exec time is " + computeHotPaths(treeList));	
-	console.log("Path is " + pathTreeString);
+	debugLog("Max executionTime: " + maxExecTime);
+	debugLog("Path is " + pathTreeString);
 }
 
 //=================================================================================================
@@ -616,6 +620,11 @@ function printTable() {
 	clearArray(tablediv); // Doesn't work
 	//console.log(tablediv);
 
+	cell.appendChild(cellText);
+	row.appendChild(cell);
+
+	cell = document.createElement("td");
+	cellText = document.createTextNode("SelfTime");
 	cell.appendChild(cellText);
 	row.appendChild(cell);
 
@@ -643,13 +652,18 @@ function printTable() {
 			row.appendChild(cell);	
 
 			cell = document.createElement("td");
-			cellText = document.createTextNode(treeTopDownList[key].level-4);
+			cellText = document.createTextNode(treeTopDownList[key].selfTime + " ms");
+			cell.appendChild(cellText);
+			row.appendChild(cell);	
+
+			cell = document.createElement("td");
+			cellText = document.createTextNode(treeTopDownList[key].level);
 			cell.appendChild(cellText);
 			row.appendChild(cell);	
 
 			cell = document.createElement("td");
 			var i = 0, str = "";
-			var level = treeTopDownList[key].level - 4;
+			var level = treeTopDownList[key].level;
 			if (level > 0) {
 				for (i = 0; i < (level-1); i++) {
 					str += 	"     ";
