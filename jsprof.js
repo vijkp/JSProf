@@ -39,6 +39,7 @@ function jsprofile(contents)
 	funcTree = {"name": "root",
 				"executionTime": 0,
 				"child": [],
+				"level": -1,
 				"parentNode": {},
 				"isInstrumented": false,
 				"selfTime" : 0};
@@ -329,6 +330,7 @@ function addNodeToFuncTree(callerNode, calleeName, isInstrumented) {
 					"child": [],
 					"parentNode": callerNode,
 					"selfTime" : 0,
+					"level" : -1,
 					"isInstrumented": isInstrumented}
 	callerNode.child.push(newNode);
 	return newNode;
@@ -437,6 +439,7 @@ function computeHotPaths(treeList)
 {
 	var maxExecTime = 0;
 	var maxExecFuncName = "null";
+	var maxExecFuncLevel = -1;
 
 	for(var x in treeList.child)
 	{
@@ -445,6 +448,7 @@ function computeHotPaths(treeList)
 		{
 			maxExecTime = temp;
 			maxExecFuncName = treeList.child[x].name;
+			maxExecFuncLevel = treeList.child[x].level;
 		}
 	}
 
@@ -470,34 +474,21 @@ function computeHotPaths(treeList)
 		}			
 		else
 		{
-			pathTreeString.push(maxExecFuncName);
-		}
-			
-		/* If the current top is also a child of the node being currently transversed ditch the whole path */
-		var ditchPath = false;
-		if(top != maxExecFuncName)
-		{
-			for(var x in treeList.child)
-			{
-				if(top == treeList.child[x].name)
-				{
-					ditchPath = true;
-					break;
-				}
-
-			}
+			pathTreeString.push({"name" : maxExecFuncName,
+								 "level": maxExecFuncLevel});
 		}
 
-		if(ditchPath)
+		/* Cant insert node of lower level, clear tree then */
+		if(top && maxExecFuncLevel > top.level)
 		{
 			pathTreeString = [];
+			pathTreeString.push({"name" : maxExecFuncName,
+								 "level": maxExecFuncLevel});
 		}
 
-		if(top && top != maxExecFuncName)
-		{
-			pathTreeString.push(maxExecFuncName);
-		}
-		pathTreeString.push(treeList.name);
+		pathTreeString.push({"name" : treeList.name,
+							 "level": treeList.level});
+
 		return maxExecTime + treeList.selfTime;
 	}
 }
@@ -532,6 +523,7 @@ function printTreeTopDown(funcTree, level) {
 									"selfTime": curNode.selfTime,
 									"totalTime": curNode.executionTime};
 			treeTopDownList.push(treeTopDownListNode);
+			funcTree.level = level;
 		}
 		for (var key in curNode.child) {
 			if (curNode.child.hasOwnProperty(key)) {
@@ -559,9 +551,13 @@ function showResults() {
 	
 	/* Print execution times for each function */
 	/* Compute hot path */	
-	var treeList = getCleanedTree(funcTree);
-	computeSelfTime(treeList);
-	var maxExecTime = computeHotPaths(treeList);
+	funcTree = getCleanedTree(funcTree);
+	computeSelfTime(funcTree);
+	treeTopDownList = [];
+	printTreeTopDown(funcTree, 0);
+	//console.log(funcTree);
+
+	var maxExecTime = 0 ; //computeHotPaths(funcTree);
 	
 	debugLog("Execution times for individual functions:");
 	for (var key in functionStats) {
@@ -570,10 +566,6 @@ function showResults() {
 				functionStats[key].name+"()");
 		}
 	}
-
-	treeTopDownList = [];
-	printTreeTopDown(treeList, 0);
-	//console.log(treeTopDownList);
 
 	printTable();
 	
@@ -601,7 +593,11 @@ function showResults() {
 	}
 
 	debugLog("Max executionTime: " + maxExecTime);
-	debugLog("Path is " + pathTreeString);
+	debugLog("Path is ");
+	for(var x in pathTreeString)
+	{
+		debugLog(" " + pathTreeString[x].name + " ");
+	}
 }
 
 //=================================================================================================
