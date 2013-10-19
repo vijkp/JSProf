@@ -9,15 +9,11 @@ var functionList = [];
 var callerCalleeList = [];
 var functionListString = "";
 var functionStats = [];
-var pathTreeString = "";
+var pathTreeString = [];
 var positionList = [];
-
-var pathMatrix = {};
-var warshallsMatrix = {};
-
 var funcTree = {};
 var currentNode = {};
-
+var treeTopDownList = [];
 
 /* Test code for instrumentation */
 var startCode = "var startTime = profileStartInFunction(arguments.callee," + 
@@ -37,25 +33,29 @@ function jsprofile(contents)
 	functionListString = "";
 	functionStats = [];
 	positionList = [];
+	pathTreeString = [];
+	funcTree = [];
 
 	funcTree = {"name": "root",
-				"time": 0,
+				"executionTime": 0,
 				"child": [],
-				"parent": {},
-				"isInstrumented": false};
+				"parentNode": {},
+				"isInstrumented": false,
+				"selfTime" : 0};
 	currentNode = funcTree;
 
 	var cleanedCode = rewriteCode(contents);
 	if (cleanedCode&& listFunctionsInFile(cleanedCode)) {
 		cleanedCode = instrumentCode(cleanedCode);
 		eval(cleanedCode);
-		console.log(funcTree);
 		showResults();	
 	}	
 	return functionListString;
 }
 
-
+//=================================================================================================
+// Function to check if an object is empty
+//=================================================================================================
 function isEmpty(obj) {
     for(var prop in obj) {
         if(obj.hasOwnProperty(prop))
@@ -125,7 +125,7 @@ function listFunctionsInFile(cleanedCode)
 function listFunctionsRecursive(list) 
 {
 	var obj = {};
-	for (var key in list) 
+		for (var key in list) 
 	{
 		if (list.hasOwnProperty(key))
 		{
@@ -256,6 +256,9 @@ function dealWithReturnStatements(code)
 	return code;
 }
 
+//=================================================================================================
+// Function to get the function name from positionList
+//=================================================================================================
 function findAndGetFunctionName(code, i) {
 	var endCode;
 	
@@ -317,11 +320,15 @@ function instrumentCode(cleanedCode)
 	return getStringCode(code);
 }
 
+//=================================================================================================
+// Function used to add node to tree
+//=================================================================================================
 function addNodeToFuncTree(callerNode, calleeName, isInstrumented) {
 	var newNode = { "name": calleeName,
-					"time": 0,
+					"executionTime": 0,
 					"child": [],
-					"parent": callerNode,
+					"parentNode": callerNode,
+					"selfTime" : 0,
 					"isInstrumented": isInstrumented}
 	callerNode.child.push(newNode);
 	return newNode;
@@ -333,7 +340,7 @@ function addNodeToFuncTree(callerNode, calleeName, isInstrumented) {
 function profileStartInFunction(calleeName, caller) {
 	var callerName;
 	var currentFunc;
-	var parentFunc;
+	var parentNodeFunc;
 	var timestamp = -1;
 	var i = 0;
 	
@@ -360,8 +367,8 @@ function profileStartInFunction(calleeName, caller) {
 				var arr2 = trace[i+1].split(" ");
 				currentFunc = arr2[0];
 				var arr3 = trace[i+2].split(" ");
-				parentFunc = arr3[0];
-				//console.log("caller: "+parentFunc+" callee: "+currentFunc);
+				parentNodeFunc = arr3[0];
+				//console.log("caller: "+parentNodeFunc+" callee: "+currentFunc);
 				currentNode = addNodeToFuncTree(currentNode, currentFunc, true);
 				break;
 			}
@@ -404,8 +411,9 @@ function profileEndInFunction(calleeName, startTime) {
 	if (calleeName === undefined) {
 		return;
 	} 
-	currentNode.time = (curTime - startTime);
-	currentNode = currentNode.parent;
+	currentNode.executionTime = (curTime - startTime);
+	currentNode.selfTime = currentNode.executionTime;
+	currentNode = currentNode.parentNode;
 
 
 	functionStats[calleeName].timeOfExec += (curTime - startTime);
@@ -423,151 +431,96 @@ function updateHits(calleeName, callerName) {
 }
 
 //=================================================================================================
-//This function is used to initialize the pathMatrix variable
-//=================================================================================================
-function initializePathMatrix()
-{
-	var size = functionList.length;
-	pathMatrix = new Array(size);
-	for(var i = 0; i<size; i++)
-	{
-		pathMatrix[i] = new Array(size);
-		for (var j = 0; j < size ; j++) 
-    	{
-    	    pathMatrix[i][j] = 0;
-    	}
-	}
-}
-
-//=================================================================================================
-//Tweaking Warshall's algorithm to get the path with largest hits
-//=================================================================================================
-function warshalls()
-{
-	 
-
-}
-
-//=================================================================================================
-// Transpose pathMatrix
-//=================================================================================================
-function transposePathMatrix()
-{
-	/* Transposing matrix for Warshall's algorithm */
-	var row = 0;
-	var col = 0;
-	for(var i in functionList)
-	{
-		col = 0;
-		for(var j in functionList)
-		{
-			if(col <= row)
-			{
-				var temp = pathMatrix[functionList[i].name][functionList[j].name]
-				pathMatrix[functionList[i].name][functionList[j].name] = pathMatrix[functionList[j].name][functionList[i].name];
-				pathMatrix[functionList[j].name][functionList[i].name] = temp;
-			}
-			col++;
-		}
-		row++;
-	}
-}
-
-//=================================================================================================
-//Function to compute hot paths
-//=================================================================================================
-/*function computeHotPaths()
-{
-	
-	/* 
-	 * Check if this callee has an entry in functionStats variable, 
-	 * add otherwise 
-	 */
-	/*if (functionStats[calleeName] === undefined) {
-		functionStats[calleeName] = {"name"      : calleeName,
-									 "callers"   : [],
-									 "hits"      : 0,
-									 "timeOfExec": 0};
-	}*/
-
-	/*for(var i in functionList)
-	{
-		for(var j in functionList)
-		{
-			//console.log(functionList[i].name + "and" + functionList[j].name);
-			if(!pathMatrix[functionList[i].name])
-			{
-				pathMatrix[functionList[i].name] = {};
-			}
-			pathMatrix[functionList[i].name][functionList[j].name] = 0;
-		}
-	}
-
-	for(var i in functionStats)
-	{
-		for(var j in functionStats[i].callers)
-		{
-			pathMatrix[functionStats[i].name][functionStats[i].callers[j].name] = functionStats[i].callers[j].hits;
-		}
-	}
-
-	transposePathMatrix();
-
-	/*for(var i in functionList)
-	{
-		for(var j in functionList)
-		{
-			console.log(functionList[i].name + "and" + functionList[j].name);
-			console.log(pathMatrix[functionList[i].name][functionList[j].name] + "");
-		}
-		console.log("\n");
-	}*/
-
-	/*warshalls();
-
-
-
-}*/
-
-
-
-//=================================================================================================
 // Function to compute hot paths
 //=================================================================================================
 function computeHotPaths(treeList)
 {
 	var maxExecTime = 0;
 	var maxExecFuncName = "null";
-	
-	for(var x in treeList.callee)
+
+	for(var x in treeList.child)
 	{
-		var temp = computeHotPaths(treeList.callee[x]);
-		if(temp > maxExecTime)
+		var temp = computeHotPaths(treeList.child[x]);
+		if(temp >= maxExecTime)
 		{
 			maxExecTime = temp;
-			maxExecFuncName = treeList.callee[x].name;
+			maxExecFuncName = treeList.child[x].name;
 		}
 	}
 
 	/* By the end of the loop maxExecTime will have the max exec time of all the callees of the current node */
 
 	/* Take care of leaf nodes */
-	if(!treeList.callee.length)
+	if(!treeList.child.length)
 	{
-		return treeList.executionTime;
+		return treeList.selfTime;
 	}
 
 	/* For the rest of the nodes, add the current node's execution time as well */
 	else
 	{
-		pathTreeString = pathTreeString.replace(maxExecFuncName, "");
-		pathTreeString = pathTreeString + maxExecFuncName + "->" + treeList.name;
-		return maxExecTime + treeList.executionTime;
+		
+		var top = pathTreeString.pop();
+		
+		/* If it is the first element of the stack push the current maxExecFuncName else just pusn the same top back in
+		 *Basically you want to peek at the top element, if the top element is the same then no need to insert it again */
+		if(top)
+		{
+			pathTreeString.push(top);
+		}			
+		else
+		{
+			pathTreeString.push(maxExecFuncName);
+		}
+			
+		/* If the current top is also a child of the node being currently transversed ditch the whole path */
+		var ditchPath = false;
+		if(top != maxExecFuncName)
+		{
+			for(var x in treeList.child)
+			{
+				if(top == treeList.child[x].name)
+				{
+					ditchPath = true;
+					break;
+				}
+
+			}
+		}
+
+		if(ditchPath)
+		{
+			pathTreeString = [];
+		}
+
+		if(top && top != maxExecFuncName)
+		{
+			pathTreeString.push(maxExecFuncName);
+		}
+		pathTreeString.push(treeList.name);
+		return maxExecTime + treeList.selfTime;
 	}
 }
 
-var treeTopDownList = [];
+//=================================================================================================
+// This function is used to compute the self time of all nodes
+//=================================================================================================
+function computeSelfTime(treeList)
+{
+	for(var x in treeList.child)
+	{
+		treeList.selfTime = treeList.selfTime - treeList.child[x].executionTime;
+	}
 
+	for(var x in treeList.child)
+	{
+		computeSelfTime(treeList.child[x]);
+	}
+}
+
+//=================================================================================================
+// This function is used to print the tree
+//=================================================================================================
 function printTreeTopDown(funcTree, level) {
 	var curNode = funcTree;
 	var treeTopDownListNode = {};
@@ -576,7 +529,7 @@ function printTreeTopDown(funcTree, level) {
 			/* Print current node with level information */
 			treeTopDownListNode = {	"name": curNode.name,
 									"level": level,
-									"totalTime": curNode.time};
+									"totalTime": curNode.executionTime};
 			treeTopDownList.push(treeTopDownListNode);
 		}
 		for (var key in curNode.child) {
@@ -585,6 +538,17 @@ function printTreeTopDown(funcTree, level) {
 			}	
 		}	
 	}
+}
+
+//=================================================================================================
+// Function used to get a tree without the instrumented functions
+//=================================================================================================
+function getCleanedTree(treeList)
+{
+	if(treeList.name == "eval")
+		return treeList.child[0];
+	else
+		return getCleanedTree(treeList.child[0]);
 }
 
 //=================================================================================================
@@ -602,11 +566,10 @@ function showResults() {
 
 	treeTopDownList = [];
 	printTreeTopDown(funcTree, 0);
-	console.log(treeTopDownList);
+	//console.log(treeTopDownList);
 
 	printTable();
-
-
+	
 	/* Frequency of calls for each function*/
 	debugLog("<br>Frequency of calls for each function");
 	for (var key in functionStats){
@@ -630,10 +593,16 @@ function showResults() {
 		}
 	}
 
-	/* Print hot paths */
-	//computeHotPaths();	
+	/* Compute and print hot path */	
+	var treeList = getCleanedTree(funcTree);
+	computeSelfTime(treeList);
+	console.log("Max exec time is " + computeHotPaths(treeList));	
+	console.log("Path is " + pathTreeString);
 }
 
+//=================================================================================================
+// Function used to print the table with all functions
+//=================================================================================================
 function printTable() {
 	var table = document.createElement("table");
 	var tableBody = document.createElement("tbody");
@@ -645,7 +614,7 @@ function printTable() {
 	/* Clear the old table */
 	var tablediv = document.getElementById('tablediv');
 	clearArray(tablediv); // Doesn't work
-	console.log(tablediv);
+	//console.log(tablediv);
 
 	cell.appendChild(cellText);
 	row.appendChild(cell);
