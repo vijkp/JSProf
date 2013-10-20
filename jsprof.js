@@ -14,6 +14,9 @@ var positionList = [];
 var funcTree = {};
 var currentNode = {};
 var treeTopDownList = [];
+var globalMaxExecTime = -9999;
+var globalHotPath = [];
+var anonymousNumber = 0;
 
 /* Test code for instrumentation */
 var startCode = "var startTime = profileStartInFunction(arguments.callee," + 
@@ -35,6 +38,9 @@ function jsprofile(contents)
 	positionList = [];
 	pathTreeString = [];
 	funcTree = [];
+	globalMaxExecTime = -9999;
+	globalHotPath = [];
+	anonymousNumber = 0;
 
 	funcTree = {"name": "root",
 				"executionTime": 0,
@@ -48,6 +54,7 @@ function jsprofile(contents)
 	var cleanedCode = rewriteCode(contents);
 	if (cleanedCode&& listFunctionsInFile(cleanedCode)) {
 		cleanedCode = instrumentCode(cleanedCode);
+		//console.log(cleanedCode);
 		eval(cleanedCode);
 		showResults();	
 	}	
@@ -155,20 +162,48 @@ function listFunctionsRecursive(list)
 						listFunctionsRecursive(obj.init.body.body);
 					}
 					break;
+				
 				case "ExpressionStatement":
-					//debugLog(obj.expression);
+					/* This is for a = function(); kind of expressions*/
 					if (obj.expression.right !== undefined){
 						if((obj.expression.type === "AssignmentExpression") && 
 							(obj.expression.right.type === "FunctionExpression")) {
 							var functionName = 
-									getNameLeftOfAssignmentExpression(obj.expression.left);
+								getNameLeftOfAssignmentExpression(obj.expression.left);
 							functionList[functionName] = {"name": functionName,
-									"lstart": obj.expression.right.loc.start.line -1,
-								 	"lend": obj.expression.right.loc.end.line-1};
+														  "lstart": obj.expression.right.loc.start.line -1,
+														  "lend": obj.expression.right.loc.end.line-1};
 							listFunctionsRecursive(obj.expression.right.body.body);
-						}
+							}
+					} else {
+					/* Here we want to deal with (function(){})(); kidn of expressions */
+					/* obj.expression.right will be undefined in this case */
+					if((obj.expression.type === "CallExpression") && 
+						(obj.expression.callee.type === "FunctionExpression")) {
+							var functionName = "anonymous" + anonymousNumber;
+							anonymousNumber += 1;
+							functionList[functionName] = {"name": functionName,
+														  "lstart": obj.expression.callee.loc.start.line -1,
+														  "lend": obj.expression.callee.loc.end.line-1};
+							listFunctionsRecursive(obj.expression.callee.body.body);
+							}
 					}
 					break;
+
+				case "ReturnStatement":
+					   	var returnFuncList = obj.argument.properties;
+					   	for(var x in returnFuncList)
+					   	{
+					   		console.log(returnFuncList);
+					   		if(returnFuncList.value.type == "FunctionExpression")
+					   		{
+					   			functionList[returnFuncList.key.name] = {"name": returnFuncList.key.name,
+														  "lstart": obj.expression.callee.loc.start.line -1,
+														  "lend": obj.expression.callee.loc.end.line-1};
+								//listFunctionsRecursive(obj.expression.callee.body.body);
+							}
+					   	}
+					    
 				default:
 					/* do nothing */
 			}
@@ -437,59 +472,63 @@ function updateHits(calleeName, callerName) {
 //=================================================================================================
 function computeHotPaths(treeList)
 {
-	var maxExecTime = 0;
-	var maxExecFuncName = "null";
-	var maxExecFuncLevel = -1;
-
-	for(var x in treeList.child)
+	//console.log(treeList);
+	if(treeList != undefined)
 	{
-		var temp = computeHotPaths(treeList.child[x]);
-		if(temp >= maxExecTime)
+		var maxExecTime = 0;
+		var maxExecFuncName = "null";
+		var maxExecFuncLevel = -1;
+
+		for(var x in treeList.child)
 		{
-			maxExecTime = temp;
-			maxExecFuncName = treeList.child[x].name;
-			maxExecFuncLevel = treeList.child[x].level;
+			var temp = computeHotPaths(treeList.child[x]);
+			if(temp >= maxExecTime)
+			{
+				maxExecTime = temp;
+				maxExecFuncName = treeList.child[x].name;
+				maxExecFuncLevel = treeList.child[x].level;
+			}
 		}
-	}
 
-	/* By the end of the loop maxExecTime will have the max exec time of all the callees of the current node */
+		/* By the end of the loop maxExecTime will have the max exec time of all the callees of the current node */
 
-	/* Take care of leaf nodes */
-	if(!treeList.child.length)
-	{
-		return treeList.selfTime;
-	}
-
-	/* For the rest of the nodes, add the current node's execution time as well */
-	else
-	{
-		
-		var top = pathTreeString.pop();
-		
-		/* If it is the first element of the stack push the current maxExecFuncName else just pusn the same top back in
-		 *Basically you want to peek at the top element, if the top element is the same then no need to insert it again */
-		if(top)
+		/* Take care of leaf nodes */
+		if(treeList.child && !treeList.child.length)
 		{
-			pathTreeString.push(top);
-		}			
+			return treeList.selfTime;
+		}
+
+		/* For the rest of the nodes, add the current node's execution time as well */
 		else
 		{
-			pathTreeString.push({"name" : maxExecFuncName,
-								 "level": maxExecFuncLevel});
+			
+			var top = pathTreeString.pop();
+			
+			/* If it is the first element of the stack push the current maxExecFuncName else just pusn the same top back in
+			 *Basically you want to peek at the top element, if the top element is the same then no need to insert it again */
+			if(top)
+			{
+				pathTreeString.push(top);
+			}			
+			else
+			{
+				pathTreeString.push({"name" : maxExecFuncName,
+									 "level": maxExecFuncLevel});
+			}
+
+			/* Cant insert node of lower level, clear tree then */
+			if(top && maxExecFuncLevel > top.level)
+			{
+				pathTreeString = [];
+				pathTreeString.push({"name" : maxExecFuncName,
+									 "level": maxExecFuncLevel});
+			}
+
+			pathTreeString.push({"name" : treeList.name,
+								 "level": treeList.level});
+
+			return maxExecTime + treeList.selfTime;
 		}
-
-		/* Cant insert node of lower level, clear tree then */
-		if(top && maxExecFuncLevel > top.level)
-		{
-			pathTreeString = [];
-			pathTreeString.push({"name" : maxExecFuncName,
-								 "level": maxExecFuncLevel});
-		}
-
-		pathTreeString.push({"name" : treeList.name,
-							 "level": treeList.level});
-
-		return maxExecTime + treeList.selfTime;
 	}
 }
 
@@ -498,14 +537,17 @@ function computeHotPaths(treeList)
 //=================================================================================================
 function computeSelfTime(treeList)
 {
-	for(var x in treeList.child)
+	if(treeList != undefined)
 	{
-		treeList.selfTime = treeList.selfTime - treeList.child[x].executionTime;
-	}
-
-	for(var x in treeList.child)
-	{
-		computeSelfTime(treeList.child[x]);
+		for(var x in treeList.child)
+		{
+			treeList.selfTime = treeList.selfTime - treeList.child[x].executionTime;
+		}
+		
+		for(var x in treeList.child)
+		{
+			computeSelfTime(treeList.child[x]);
+		}
 	}
 }
 
@@ -538,10 +580,18 @@ function printTreeTopDown(funcTree, level) {
 //=================================================================================================
 function getCleanedTree(treeList)
 {
-	if(treeList.name == "eval")
-		return treeList.child[0];
-	else
-		return getCleanedTree(treeList.child[0]);
+	if(treeList != undefined)
+	{
+		if(treeList.name == "eval")
+		{
+			treeList.selfTime = 0;
+			return treeList;
+		}
+		else
+		{
+			return getCleanedTree(treeList.child[0]);
+		}
+	}
 }
 
 //=================================================================================================
@@ -552,12 +602,32 @@ function showResults() {
 	/* Print execution times for each function */
 	/* Compute hot path */	
 	funcTree = getCleanedTree(funcTree);
+	console.log(funcTree);
 	computeSelfTime(funcTree);
 	treeTopDownList = [];
 	printTreeTopDown(funcTree, 0);
-	//console.log(funcTree);
-
-	var maxExecTime = 0 ; //computeHotPaths(funcTree);
+	console.log(funcTree);
+	
+	for(var i = 0; i<funcTree.child.length; i++)
+	{
+		pathTreeString = [];
+		var tempTime = computeHotPaths(funcTree.child[i]);
+		var top = pathTreeString.pop();
+		if(!top)
+		{
+			pathTreeString.push({ "name": funcTree.child[i].name,
+								  "level": 0} );
+		}
+		else
+		{
+			pathTreeString.push(top);
+		}
+		if(tempTime > globalMaxExecTime)
+		{
+			globalHotPath = pathTreeString;
+			globalMaxExecTime = tempTime;
+		}
+	}
 	
 	debugLog("Execution times for individual functions:");
 	for (var key in functionStats) {
@@ -592,11 +662,13 @@ function showResults() {
 		}
 	}
 
-	debugLog("Max executionTime: " + maxExecTime);
+	debugLog("Max executionTime: " + globalMaxExecTime);
+	console.log("Max executionTime: " + globalMaxExecTime);
 	debugLog("Path is ");
-	for(var x in pathTreeString)
-	{
-		debugLog(" " + pathTreeString[x].name + " ");
+	for(var x=0 ; x<globalHotPath.length; x++)
+	{		
+		console.log(" " + globalHotPath[x].name + " ");
+		debugLog(" " + globalHotPath[x].name + "->");
 	}
 }
 
