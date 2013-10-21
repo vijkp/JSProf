@@ -4,6 +4,9 @@ var httpProxy = require('http-proxy');
 var express = require('express');
 var mime = require('mime');
 var request = require("request");
+/* Jsprof external js file */
+var jsprof =  require("./jsprof-server");
+
 var app = express();
 
 /* Log the requests */
@@ -27,9 +30,9 @@ httpProxy.createServer(function (req, res, proxy) {
 	var x = request(parsedUrl.href, function(error, response, body){
 		/* Edit the html and javascript here */
 		if(mimeType === "application/javascript") {
-			response.body = "/* sample text */" + response.body;
-			// XXX Javascript instrumentation here.
-
+			/* Instrumentaion of js file */
+			response.body = jsprof.jsInstrumentFileOnServer(response.body);
+			console.log("java script instrumented: "+ response.body);
 			clientres.setHeader("Content-Type", mimeType);
 			clientres.write(response.body);
 			clientres.end();
@@ -51,7 +54,9 @@ httpProxy.createServer(function (req, res, proxy) {
 				clientres.setHeader("Content-Type", "text/css");
 			} else if (parsedUrl.href.indexOf(".js") !== -1) {
 				clientres.setHeader("Content-Type", "application/javascript");	
-				// XXX Javascript instrumentation here.
+				/* Check for html and javascript here */
+				response.body = jsprof.jsInstrumentFileOnServer(response.body);
+				console.log("java script2 instrumented: "+ response.body);
 			} else {
 				clientres.setHeader("Content-Type", mimeType);	
 			}

@@ -25,11 +25,7 @@ var startCode = "var startTime = profileStartInFunction(arguments.callee," +
 	            "arguments.callee.caller);";
 var endCode   = "profileEndInFunction(arguments.callee, startTime);";
 
-//=================================================================================================
-// Main function. Called from index.html
-//=================================================================================================
-function jsprofile(contents)
-{
+function initializeAllGlobals(){
 	/* Clear all the globals before each run */
 	anonymousNumber = 0;
 	numberOfFunctions = 0;
@@ -54,6 +50,14 @@ function jsprofile(contents)
 				"isInstrumented": false,
 				"selfTime" : 0};
 	currentNode = funcTree;
+}
+
+//=================================================================================================
+// Main function. Called from index.html
+//=================================================================================================
+function jsprofile(contents)
+{
+	initializeAllGlobals();
 
 	var cleanedCode = rewriteCode(contents);
 	if (cleanedCode&& listFunctionsInFile(cleanedCode)) {
@@ -73,6 +77,7 @@ function jsprofile(contents)
 	return functionListString;
 }
 
+
 //=================================================================================================
 // Function to check if an object is empty
 //=================================================================================================
@@ -90,7 +95,7 @@ function isEmpty(obj) {
 //=================================================================================================
 function debugLog(string) {		
 	functionListString += string + "<br>"; 
-	document.getElementById('output').innerHTML = functionListString;
+	//document.getElementById('output').innerHTML = functionListString;
 }
 
 //=================================================================================================
@@ -105,7 +110,7 @@ function rewriteCode(contents)
 	try {
 		toRewrite = esprima.parse(contents, {raw: true, tokens: true, range: true, comment: true});
 		//toRewrite = window.escodegen.attachComments(toRewrite, toRewrite.comments, toRewrite.tokens);
-		cleanedCode = window.escodegen.generate(toRewrite, optionsToRewrite);
+		cleanedCode = escodegen.generate(toRewrite, optionsToRewrite);
 	} catch(e) {
 		str = e.name + ": " + "rewriteCode: "+ e.message;
 		debugLog(str);
@@ -162,6 +167,10 @@ function changeCodeForCallBacks(cleanedCode)
 		
 		
 		/*Now deal with function definitions */
+		if(!functionList[callBackList[x].name])
+		{
+			return getStringCode(code);
+		}
 		index = functionList[callBackList[x].name].lstart;
 		
 		/*For example replace the function call profile()
@@ -251,19 +260,24 @@ function dealWithCallbacksRecursive(list, callerName)
 						if(args[x].id)
 						{
 							var name = args[x].id.name;
+							/*Add info into call back list*/
+							callBackList.push({"name": name,
+								"lstart": args[x].id.loc.start.line,
+								"callerName" : callerName,
+								"isDefinition" : true,
+							"lend": args[x].id.loc.end.line});
 						}
 						else
 						{
 							var name = "anonymous" + anonymousNumber;
 							anonymousNumber = anonymousNumber + 1;
+							/*Add info into call back list*/
+							callBackList.push({"name": name,
+								"lstart": args[x].loc.start.line,
+								"callerName" : callerName,
+								"isDefinition" : true,
+							"lend": args[x].loc.end.line});
 						}
-
-						/*Add info into call back list*/
-						callBackList.push({"name": name,
-							"lstart": args[x].id.loc.start.line,
-							"callerName" : callerName,
-							"isDefinition" : true,
-						"lend": args[x].id.loc.end.line});
 
 						/*Add this function into functionList. Add 1 to make sure the definition and calls are different*/
 						functionList[name] = {"name": name,
@@ -831,7 +845,7 @@ function showResults() {
 
 	treeTopDownList = [];
 	printTreeTopDown(funcTree, 0);
-	console.log(treeTopDownList);
+	//console.log(treeTopDownList);
 	printTable();
 	
 	/* Frequency of calls for each function*/
