@@ -34,4 +34,3 @@ function sub(x,y) {
 }
 
 not(2,3);
-

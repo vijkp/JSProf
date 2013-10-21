@@ -3,51 +3,123 @@
 <html>
     <head>
         <title> JSProf </title>
-        <link rel="stylesheet" type="text/css" href="css/layout.css" media="screen, projection">
+        <link rel="stylesheet" type="text/css" href="css/layout.css">
+        <!-- <link rel="stylesheet" type="text/css" href="css/layout.css" media="screen, projection"> -->
     </head>
     <body>
         <!-- External Javascript source files -->
         <script type="text/javascript" src='lib/esprima.js'></script>
         <script type="text/javascript" src='lib/escodegen.browser.js'></script>
         <script type="text/javascript" src='lib/stacktrace.js'></script>
+        <script type="text/javascript" src='lib/jquery-2.0.3.js'></script>
         <script type="text/javascript" src='jsprof.js'></script>
-
-        <div id="wrap">    
-            <div id="header"><h2>JSProf</h2></div>
-            <div id="nav">
-                <ul>
-                    <li><a href="#">Option 1</a></li>
-                    <li><a href="#">Option 2</a></li>
-                </ul>
-            </div>
-            <div id="description">
-                <h3> Description </h3>
-                <p> This is a Javascript profiler written in Javascript. <br> <br>
-                    Things done so far: <br> 
-                    <ul>
-                        <li> Execution times for individual functions.</li>
-                        <li> Frequency of calls for each function. </li>
-                        <li> Edges between caller and callee functions and frequency of their calls. </li> 
+        
+            <div id="wrap">   
+                <div id="header">JSProf</div>
+                <div id="menu"> 
+                        <div id="title"> JSProf</div>
+                        <div id="start"> Start</div>
+                        <div id="end"> End</div>
+                       
+                        <div id="message"> Profiler not running. </div>
+                         <div id="results"> Results</div>
                     </ul>
-                </p>
-            </div>
-            <div id="testbed">
-                <h3> Test </h3>
-                <p> Select a .js file to profile <input type="file" id="fileinput" /></p>
-                <p> or choose from the following list </p>
-                <p> Log: </p>
-                <div id="output_box">
-                    <div id="output"></div>
+                </div>
+                <div id="nav">
+                    <ul>
+                        <li><a href="#">Option 1</a></li>
+                        <li><a href="#">Option 2</a></li>
+                    </ul>
+                </div>
+                <div id="description">
+                    <h3> Description </h3>
+                    <p> This is a Javascript profiler written in Javascript. <br> <br>
+                        Things done so far: <br> 
+                        <ul>
+                            <li> Execution times for individual functions.</li>
+                            <li> Frequency of calls for each function. </li>
+                            <li> Edges between caller and callee functions and frequency of their calls. </li> 
+                        </ul>
+                    </p>
+                </div>
+                <div id="url_test"> 
+                    <h3> Test a website </h3>
+                    Enter an url here:
+                        <input id="url_input" onKeyPress="return checkSubmit(event)" aria-hidden="true" autocomplete="off" tabindex="-1" value="www.umass.edu">
+                        <button id="go_button" onclick="Javascript:readTextandGo()">Go!</button>
+                </div>
+                <div id="testbed">
+                    <h3> Test a .js file </h3>
+                    <p> Select a .js file to profile <input type="file" id="fileinput" /></p>
+                    <p> or choose from the following list </p>
+                    <p> Log: </p>
+                    <div id="output_box">
+                        <div id="output"></div>
+                    </div>
+                </div>
+                <div id="tablediv"> </div>
+                <div id="footer">
+                    <p> HTML5 | 10/11/2013 </p>
                 </div>
             </div>
-            <div id="tablediv"> </div>
-
-            <div id="footer">
-                <p> HTML5 | 10/11/2013 </p>
+            <div id="wrap2">    
+                <iframe id="iframe_box" src=""> google </iframe>
             </div>
-        </div>
         <!-- Javascript in this file -->
         <script type="text/javascript">
+            function getId(id) {
+                return document.getElementById(id);
+            }
+            function checkSubmit(e) {
+                if (e && e.keyCode == 13){
+                    readTextandGo();
+                }
+            }
+
+            function readTextandGo() {
+                var new_url = getId("url_input").value;
+                if(new_url.indexOf('http://') != 0) {
+                    new_url = "http://" + new_url;
+                }
+                var new_size = $(window).width();
+                var new_iframe_height = $(window).height() - 96;
+                $("#header").hide();
+                $("#menu").show();
+                $("#wrap2").show();
+                $("#wrap2").animate({width: new_size}, 0);
+                $("#testbed").hide();
+                $("#url_test").hide();
+                $("#description").hide();
+                $('#tablediv').hide();
+                $("#wrap2").animate({height: new_iframe_height}, 0);
+                $("#footer").hide();
+                $("#wrap").animate({paddingTop: 6, paddingBottom: 6, height: 32}, 0);
+                getId("iframe_box").src = new_url;
+            }
+            
+            $(function() {
+                console.log( 'ready!' );
+                var data = $("iframe_box").contents().find("body").html();
+                console.log("Data Loaded: " + data);
+            });
+                
+            $('#start').click(function() {
+                $("#message").html("Profiler started.");
+                $("#results").hide();
+            });
+
+            $('#end').click(function() {
+                $("#message").html("Profiler stopped.");
+                $("#results").css({"display": "inline"});
+            });
+
+            $('#results').click(function() {
+                $("#message").html("Profiler displying results.");
+                $("#wrap2").hide();
+                $("#url_test").show();
+                $("#wrap").css({"height": $(window).height()});
+            });
+
             function readSingleFile(evt) {
                 /* Retrieve the first (and only!) File from the FileList object */
                 var f = evt.target.files[0];
@@ -56,7 +128,8 @@
                     r.onload = function(e) { 
                         var contents = e.target.result;
                         functionListString = jsprofile(contents);
-                        document.getElementById('output').innerHTML = functionListString;
+                        getId('output').innerHTML = functionListString;
+                        contents = "";
                     }
                     r.readAsText(f);
                 } else { 

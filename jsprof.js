@@ -3,6 +3,7 @@
 //=================================================================================================
 
 /* GLOBALS */
+var anonymousNumber = 0;
 var numberOfFunctions = 0;
 var numberOfFunctionCalls = 0;
 var functionList = [];
@@ -30,6 +31,7 @@ var endCode   = "profileEndInFunction(arguments.callee, startTime);";
 function jsprofile(contents)
 {
 	/* Clear all the globals before each run */
+	anonymousNumber = 0;
 	numberOfFunctions = 0;
 	numberOfFunctionCalls = 0;
 	functionList = [];
@@ -48,6 +50,7 @@ function jsprofile(contents)
 	var cleanedCode = rewriteCode(contents);
 	if (cleanedCode&& listFunctionsInFile(cleanedCode)) {
 		cleanedCode = instrumentCode(cleanedCode);
+		console.log(cleanedCode);
 		eval(cleanedCode);
 		console.log(funcTree);
 		showResults();	
@@ -68,7 +71,7 @@ function isEmpty(obj) {
 //=================================================================================================
 // Debug function to print on the output box in browser 
 //=================================================================================================
-function debugLog(string) {
+function debugLog(string) {		
 	functionListString += string + "<br>"; 
 	document.getElementById('output').innerHTML = functionListString;
 	//console.log(string);
@@ -80,18 +83,19 @@ function debugLog(string) {
 //=================================================================================================
 function rewriteCode(contents)
 {
-	var toRewrite;
+	var toRewrite = "";
 	/* Parse the code and rewrite it to the standard form that we are going to use */
-	var optionsToRewrite = {"comment":true,"format":{"indent":{"style":"    "},"quotes":"single"}};
+	var optionsToRewrite = {comment:true, format:{indent:{style:'    '}, quotes: 'double'}};
 	try {
-		toRewrite = esprima.parse(contents, {range: true, loc: true});
+		toRewrite = esprima.parse(contents, {raw: true, tokens: true, range: true, comment: true});
+		//toRewrite = window.escodegen.attachComments(toRewrite, toRewrite.comments, toRewrite.tokens);
+		cleanedCode = window.escodegen.generate(toRewrite, optionsToRewrite);
 	} catch(e) {
-		str = e.name + ": " + "rewriteCode"+ e.message;
+		str = e.name + ": " + "rewriteCode: "+ e.message;
 		debugLog(str);
 		cleanedCode = null;	
 		/* XXX: Show the error on the screen too. */
 	}
-	cleanedCode = window.escodegen.generate(toRewrite, optionsToRewrite);
 	return cleanedCode;
 }
 
@@ -107,7 +111,7 @@ function listFunctionsInFile(cleanedCode)
 	try {
 		parseout = esprima.parse(cleanedCode, {range: true, loc: true});
 	} catch(e) {
-		str = e.name + ": " + "parse: " + e.message;
+		str = e.name + ": " + "parseCode: " + e.message;
 		debugLog(str);
 		/* XXX: Show the error on the screen too. */
 		return false;
@@ -155,7 +159,7 @@ function listFunctionsRecursive(list)
 					}
 					break;
 				case "ExpressionStatement":
-					//debugLog(obj.expression);
+					/* This is for a = function(); kind of expressions*/
 					if (obj.expression.right !== undefined){
 						if((obj.expression.type === "AssignmentExpression") && 
 							(obj.expression.right.type === "FunctionExpression")) {
@@ -165,6 +169,18 @@ function listFunctionsRecursive(list)
 									"lstart": obj.expression.right.loc.start.line -1,
 								 	"lend": obj.expression.right.loc.end.line-1};
 							listFunctionsRecursive(obj.expression.right.body.body);
+						}
+					} else {
+						/* Here we want to deal with (function(){})(); kidn of expressions */
+						/* obj.expression.right will be undefined in this case */
+						if((obj.expression.type === "CallExpression") && 
+							(obj.expression.callee.type === "FunctionExpression")) {
+							var functionName = "anonymous" + anonymousNumber;
+							anonymousNumber += 1;
+							functionList[functionName] = {"name": functionName,
+									"lstart": obj.expression.callee.loc.start.line -1,
+								 	"lend": obj.expression.callee.loc.end.line-1};
+							listFunctionsRecursive(obj.expression.callee.body.body);
 						}
 					}
 					break;
@@ -344,13 +360,14 @@ function profileStartInFunction(calleeName, caller) {
 	}
 
 	var trace = printStackTrace();
+	console.log(trace);
 	if (currentNode.name === "root") {
 		for (i = (trace.length - 1); i >= 0 ; i--){
 			var arr = trace[i].split(" ");
 			if (arr[0] === "profileStartInFunction") {
 				break;
 			}
-			currentNode = addNodeToFuncTree(currentNode, arr[0], false);
+			currentNode = addNodeToFuncTree(currentNode, arr[0], true);
 		}
 		currentNode.isInstrumented = true;
 	} else {
@@ -603,7 +620,6 @@ function showResults() {
 	treeTopDownList = [];
 	printTreeTopDown(funcTree, 0);
 	console.log(treeTopDownList);
-
 	printTable();
 
 
@@ -674,22 +690,24 @@ function printTable() {
 			row.appendChild(cell);	
 
 			cell = document.createElement("td");
-			cellText = document.createTextNode(treeTopDownList[key].level-4);
+			cellText = document.createTextNode(treeTopDownList[key].level-1);
 			cell.appendChild(cellText);
 			row.appendChild(cell);	
 
 			cell = document.createElement("td");
 			var i = 0, str = "";
-			var level = treeTopDownList[key].level - 4;
+			var level = treeTopDownList[key].level-1;
 			if (level > 0) {
 				for (i = 0; i < (level-1); i++) {
 					str += 	"     ";
 				}
 				str += ("  |--" + treeTopDownList[key].name);
+				cell.setAttribute('style', "text-align: left;");
 			} else {
 				str = treeTopDownList[key].name;
+				cell.setAttribute('style', "text-align: left; font-weight: bold;");
 			}
-			cell.setAttribute('style', "text-align: left");
+			
 			cellText = document.createTextNode(str);
 			cell.appendChild(cellText);
 			row.appendChild(cell);	

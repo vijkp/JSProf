@@ -9,4 +9,4 @@ function recur(number) {
 
 }
 
-recur(4);
+recur(10);
