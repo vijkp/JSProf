@@ -1,4 +1,3 @@
-
 (function(){
 	console.log("starting closure function");
 	var t = 10;
@@ -8,6 +7,10 @@
 	not(1,2);
 })();
 
+(function(){
+	var t = 10;
+	var t2 = 20;
+})();
 
 //(function () {
 var abc = 0;
