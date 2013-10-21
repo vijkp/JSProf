@@ -1,12 +1,10 @@
 var path = require('path');
-var http = require('http'), url = require('url'), fs = require('fs');
+var http = require('http'), url = require('url');
 var httpProxy = require('http-proxy');
 var express = require('express');
-var requestify = require('requestify');
 var mime = require('mime');
 var request = require("request");
 var app = express();
-var fs = require('fs');
 
 /* Log the requests */
 app.use(express.logger('dev'));
