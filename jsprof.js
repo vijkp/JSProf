@@ -17,6 +17,7 @@ var treeTopDownList = [];
 var globalMaxExecTime = -9999;
 var globalHotPath = [];
 var anonymousNumber = 0;
+var callBackList = [];
 
 /* Test code for instrumentation */
 var startCode = "var startTime = profileStartInFunction(arguments.callee," + 
@@ -41,6 +42,7 @@ function jsprofile(contents)
 	globalMaxExecTime = -9999;
 	globalHotPath = [];
 	anonymousNumber = 0;
+	callBackList = [];
 
 	funcTree = {"name": "root",
 				"executionTime": 0,
@@ -53,8 +55,17 @@ function jsprofile(contents)
 
 	var cleanedCode = rewriteCode(contents);
 	if (cleanedCode&& listFunctionsInFile(cleanedCode)) {
+		
+		cleanedCode = rewriteCode(cleanedCode);
+		dealWithCallbacks(cleanedCode);
+		cleanedCode = changeCodeForCallBacks(cleanedCode);
+
+		/* You need to re compute the start and end lines of the function definitions because
+		* the previous dealing with call backs will add new lines to the instrumented code */
+		cleanedCode = rewriteCode(cleanedCode);
+		listFunctionsInFile(cleanedCode);
 		cleanedCode = instrumentCode(cleanedCode);
-		//console.log(cleanedCode);
+		
 		eval(cleanedCode);
 		showResults();	
 	}	
@@ -79,7 +90,6 @@ function isEmpty(obj) {
 function debugLog(string) {
 	functionListString += string + "<br>"; 
 	document.getElementById('output').innerHTML = functionListString;
-	//console.log(string);
 }
 
 //=================================================================================================
@@ -102,6 +112,173 @@ function rewriteCode(contents)
 	cleanedCode = window.escodegen.generate(toRewrite, optionsToRewrite);
 	return cleanedCode;
 }
+
+//=================================================================================================
+// Function that changes code required for async callbacks
+//=================================================================================================
+function changeCodeForCallBacks(cleanedCode)
+{
+	var code = cleanedCode.split("\n");
+	var appendChar;
+	var index;
+	var firstIndex;
+	var secondIndex;
+	
+	/* For every start code add extra args of startTime and function name */
+	for(var x in callBackList)
+	{
+		/*First deal with function calls*/
+		index = callBackList[x].lstart - 1;
+		
+		/*For example replace the function call profile()
+		* with profile(startTime, functionName) */
+		firstIndex = code[index].indexOf((callBackList[x].name + "("));
+		secondIndex = code[index].indexOf((callBackList[x].name + "(" + ")"));
+
+		/*No arguments present */
+		if((secondIndex - firstIndex) == 0 )
+		{
+			appendChar = "";
+		}
+		else
+		{
+			appendChar = ","
+		}
+
+		if(!callBackList[x].isDefinition)
+		{
+			/* Do the actual appending */
+			code[index] = code[index].replace((callBackList[x].name + "(") , 
+						(callBackList[x].name + "(" + "startTime, " + callBackList[x].callerName + appendChar));
+		}
+		else
+		{
+			/* Do the actual appending */
+			code[index] = code[index].replace((callBackList[x].name + "(") , 
+						(callBackList[x].name + "(" + "startTime, " + "calleeName" + ", currentNode" + appendChar));
+		}
+		
+		
+		/*Now deal with function definitions */
+		index = functionList[callBackList[x].name].lstart;
+		
+		/*For example replace the function call profile()
+		* with profile(startTime, functionName) */
+		firstIndex = code[index].indexOf((callBackList[x].name + "("));
+		secondIndex = code[index].indexOf((callBackList[x].name + "(" + ")"));
+
+		/*No arguments present */
+		if((secondIndex - firstIndex) == 0 )
+		{
+			appendChar = "";
+		}
+		else
+		{
+			appendChar = ","
+		}
+
+		/* Do the actual appending. Function definition already has the appending done so dont bother doing that again */
+		if(!callBackList[x].isDefinition)
+		{
+			code[index] = code[index].replace((callBackList[x].name + "(") , 
+						(callBackList[x].name + "(" + "startTimeOfCaller, " + callBackList[x].callerName + appendChar));
+			index = functionList[callBackList[x].name].lend;
+			code[index] = "profileCallBackEnd(startTimeOfCaller,\"" + callBackList[x].callerName +"\", currentNode)" + ";" + code[index];
+		}
+		else
+		{
+			/*Append end function for callback */
+			index = functionList[callBackList[x].name].lend;
+			code[index] = "profileCallBackEnd(startTime,\"" + callBackList[x].callerName +"\", currentNode)" + ";" + code[index];
+		}
+		
+	}
+	return getStringCode(code);
+}
+
+//=================================================================================================
+// Function that deals with asynchronous callbacks
+//=================================================================================================
+function dealWithCallbacks(cleanedCode)
+{
+	var list;
+	try {
+		parseout = esprima.parse(cleanedCode, {range: true, loc: true});
+	} catch(e) {
+		str = e.name + ": " + "parse: " + e.message;
+		debugLog(str);
+		/* XXX: Show the error on the screen too. */
+		return false;
+	}
+	list = parseout.body;	
+	dealWithCallbacksRecursive(list);
+}
+
+//=================================================================================================
+// Function that deals with asynchronous callbacks
+//=================================================================================================
+function dealWithCallbacksRecursive(list, callerName)
+{
+	var obj = {};
+	
+	for (var key in list)
+    {
+		obj = list[key];
+
+		if(obj.type == "ExpressionStatement")
+		{
+			if(obj.expression.type == "CallExpression")
+			{
+				var args = obj.expression.arguments;
+				
+				for(var x in args)
+				{
+					if(args[x].type == "CallExpression")
+					{
+						/* Callback function is being called */
+						callBackList.push({"name" : args[x].callee.name,
+							"lstart": args[x].callee.loc.start.line,
+							"lend": args[x].callee.loc.end.line,
+							"isDefinition": false,
+							"callerName" : callerName});
+					}
+
+					else if(args[x].type == "FunctionExpression")
+					{
+						/* Callback function is being defined */
+						if(args[x].id)
+						{
+							var name = args[x].id.name;
+						}
+						else
+						{
+							var name = "anonymous" + anonymousNumber;
+							anonymousNumber = anonymousNumber + 1;
+						}
+
+						/*Add info into call back list*/
+						callBackList.push({"name": name,
+							"lstart": args[x].id.loc.start.line,
+							"callerName" : callerName,
+							"isDefinition" : true,
+						"lend": args[x].id.loc.end.line});
+
+						/*Add this function into functionList. Add 1 to make sure the definition and calls are different*/
+						functionList[name] = {"name": name,
+							"lstart": args[x].loc.start.line + 1,
+							"lend": args[x].loc.end.line - 1};
+					}
+				}
+			}
+		}
+		else if(obj.body)
+		{
+			//This can be a block statement or a function declaration inside which another function is called.
+			if(obj.id && obj.body.body)
+				dealWithCallbacksRecursive(obj.body.body, obj.id.name);
+		}
+	}
+} 
 
 //=================================================================================================
 // Function to list all the functions in the input file and note down the start and end line 
@@ -133,7 +310,7 @@ function listFunctionsInFile(cleanedCode)
 function listFunctionsRecursive(list) 
 {
 	var obj = {};
-		for (var key in list) 
+	for (var key in list) 
 	{
 		if (list.hasOwnProperty(key))
 		{
@@ -190,7 +367,7 @@ function listFunctionsRecursive(list)
 					}
 					break;
 
-				case "ReturnStatement":
+				/*case "ReturnStatement":
 					   	var returnFuncList = obj.argument.properties;
 					   	for(var x in returnFuncList)
 					   	{
@@ -202,7 +379,7 @@ function listFunctionsRecursive(list)
 														  "lend": obj.expression.callee.loc.end.line-1};
 								//listFunctionsRecursive(obj.expression.callee.body.body);
 							}
-					   	}
+					   	}*/
 					    
 				default:
 					/* do nothing */
@@ -322,7 +499,8 @@ function getStringCode(code)
 		cc = cc + code[z];
 
 	}
-	return rewriteCode(cc);
+	return cc;
+	//return rewriteCode(cc);
 }
 
 //=================================================================================================
@@ -354,6 +532,7 @@ function instrumentCode(cleanedCode)
 	/* Deal with return statements being strewn in the function definition */
 	code = dealWithReturnStatements(code);
 	return getStringCode(code);
+	//return code;
 }
 
 //=================================================================================================
@@ -405,7 +584,6 @@ function profileStartInFunction(calleeName, caller) {
 				currentFunc = arr2[0];
 				var arr3 = trace[i+2].split(" ");
 				parentNodeFunc = arr3[0];
-				//console.log("caller: "+parentNodeFunc+" callee: "+currentFunc);
 				currentNode = addNodeToFuncTree(currentNode, currentFunc, true);
 				break;
 			}
@@ -457,6 +635,20 @@ function profileEndInFunction(calleeName, startTime) {
 }
 
 //=================================================================================================
+// Function inserted at the end of every callback functiond definition
+//=================================================================================================
+function profileCallBackEnd(startTimeOfCaller, callerName, callBackNode) {
+	var curTime = +new Date();
+	if (calleeName === undefined) {
+		return;
+	} 
+	callBackNode.executionTime = (curTime - startTimeOfCaller);
+	ccallBackNode.selfTime = callBackNode.executionTime;
+	
+	functionStats[callerName].timeOfExec += (curTime - startTimeOfCaller);
+}
+
+//=================================================================================================
 // Function to update no. of hits for each function call 
 //=================================================================================================
 function updateHits(calleeName, callerName) {
@@ -472,7 +664,6 @@ function updateHits(calleeName, callerName) {
 //=================================================================================================
 function computeHotPaths(treeList)
 {
-	//console.log(treeList);
 	if(treeList != undefined)
 	{
 		var maxExecTime = 0;
@@ -602,11 +793,9 @@ function showResults() {
 	/* Print execution times for each function */
 	/* Compute hot path */	
 	funcTree = getCleanedTree(funcTree);
-	console.log(funcTree);
 	computeSelfTime(funcTree);
 	treeTopDownList = [];
 	printTreeTopDown(funcTree, 0);
-	console.log(funcTree);
 	
 	for(var i = 0; i<funcTree.child.length; i++)
 	{
@@ -686,7 +875,6 @@ function printTable() {
 	/* Clear the old table */
 	var tablediv = document.getElementById('tablediv');
 	clearArray(tablediv); // Doesn't work
-	//console.log(tablediv);
 
 	cell.appendChild(cellText);
 	row.appendChild(cell);
