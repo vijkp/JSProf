@@ -514,7 +514,7 @@ function dealWithReturnStatements(code)
 // Function to get the function name from positionList
 //=================================================================================================
 function findAndGetFunctionName(code, i) {
-	var endCode;
+	var endCode = ";";
 	while ((i <= code.length) && (positionList[i] === undefined)) {
 		if (i == positionList.length) {
 			return ";";
@@ -528,6 +528,7 @@ function findAndGetFunctionName(code, i) {
 			return endCode;
 		}
 	}
+	return endCode;
 }
 
 //=================================================================================================
@@ -683,7 +684,6 @@ function profileEndInFunction(calleeName, startTime) {
 	currentNode.selfTime = currentNode.executionTime;
 	currentNode = currentNode.parentNode;
 
-
 	functionStats[calleeName].timeOfExec += (curTime - startTime);
 }
 
@@ -702,7 +702,7 @@ function profileCallBackEnd(startTimeOfCaller, callerName, callBackNode) {
 	callBackNode.executionTime = (curTime - startTimeOfCaller);
 	callBackNode.selfTime = callBackNode.executionTime;
 	
-	functionStats[callerName].timeOfExec += (curTime - startTimeOfCaller);
+	//functionStats[callerName].timeOfExec += (curTime - startTimeOfCaller);
 }
 
 //=================================================================================================

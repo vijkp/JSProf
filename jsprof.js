@@ -509,7 +509,7 @@ function dealWithReturnStatements(code)
 // Function to get the function name from positionList
 //=================================================================================================
 function findAndGetFunctionName(code, i) {
-	var endCode;
+	var endCode = ";";
 	while ((i <= code.length) && (positionList[i] === undefined)) {
 		if (i == positionList.length) {
 			return ";";
@@ -523,6 +523,7 @@ function findAndGetFunctionName(code, i) {
 			return endCode;
 		}
 	}
+	return endCode;
 }
 
 //=================================================================================================
@@ -595,7 +596,10 @@ function profileStartInFunction(calleeName, caller) {
 	
 	if(!profileEnable) { 
 			return;
+	} else {
+		console.log("js profile: function call");
 	}
+
 	var callerName;
 	var currentFunc;
 	var parentNodeFunc;
@@ -610,6 +614,9 @@ function profileStartInFunction(calleeName, caller) {
 
 	var trace = printStackTrace();
 	//console.log(trace);		
+	if (currentNode === undefined) {
+		currentNode = funcTree;
+	}
 	if (currentNode.name === "root") {
 		for (i = (trace.length - 1); i >= 0 ; i--){
 			var arr = trace[i].split(" ");
@@ -665,40 +672,55 @@ function profileStartInFunction(calleeName, caller) {
 // Function inserted at the end of every function definition
 //=================================================================================================
 function profileEndInFunction(calleeName, startTime) {
-	console.log("profenable callback" + profileEnable);
+	
 	if(!profileEnable) { 
 		return;
+	} else {
+		console.log("js profile: function end" + profileEnable);
 	}
 
 	var curTime = +new Date();
 	if (calleeName === undefined) {
 		return;
 	} 
-	currentNode.executionTime = (curTime - startTime);
-	currentNode.selfTime = currentNode.executionTime;
-	currentNode = currentNode.parentNode;
-
-
-	functionStats[calleeName].timeOfExec += (curTime - startTime);
+	if (currentNode !== undefined) {
+		currentNode.executionTime = (curTime - startTime);
+		currentNode.selfTime = currentNode.executionTime;
+		currentNode = currentNode.parentNode;
+	} else {
+		currentNode = funcTree;
+	}
+	
+	if (functionStats[calleeName] !== undefined) {
+		functionStats[calleeName].timeOfExec += (curTime - startTime);
+	}
 }
 
 //=================================================================================================
 // Function inserted at the end of every callback functiond definition
 //=================================================================================================
 function profileCallBackEnd(startTimeOfCaller, callerName, callBackNode) {
-	console.log("profenable callback" + profileEnable);
+	
 	if(!profileEnable) { 
 		return;
+	} else {
+		console.log("js profrile callback" + profileEnable);
 	}
 
 	var curTime = +new Date();
 	if (callerName === undefined) {
 		return;
 	} 
-	callBackNode.executionTime = (curTime - startTimeOfCaller);
-	callBackNode.selfTime = callBackNode.executionTime;
+	if (callBackNode !== undefined) {
+		callBackNode.executionTime = (curTime - startTimeOfCaller);
+		callBackNode.selfTime = callBackNode.executionTime;	
+	} else {
+		callBackNode = funcTree;
+	}
 	
-	functionStats[callerName].timeOfExec += (curTime - startTimeOfCaller);
+	if (functionStats[callerName] !== undefined) {
+		functionStats[callerName].timeOfExec += (curTime - startTimeOfCaller);	
+	}
 }
 
 //=================================================================================================
@@ -709,7 +731,9 @@ function updateHits(calleeName, callerName) {
 	if(callerName !== undefined) {
 		functionStats[calleeName].callers[callerName].hits += 1;
 	}
-	functionStats[calleeName].hits += 1; 
+	if (functionStats[calleeName] !== undefined) {
+		functionStats[calleeName].hits += 1; 
+	}
 }
 
 //=================================================================================================
@@ -824,6 +848,9 @@ function printTreeTopDown(funcTree, level) {
 //=================================================================================================
 function getCleanedTree(treeList)
 {
+	return;
+	// No OP.
+
 	if(treeList != undefined)
 	{
 		if(treeList.name == "eval")
