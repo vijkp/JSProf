@@ -1,10 +1,12 @@
+% % % Template taken from: http://www.maths.bris.ac.uk/~as1637/teaching/latex/template2.tex % % %
+
 \documentclass[a4paper, 12pt, notitlepage]{report}
 
 \usepackage{amsfonts} % if you want blackboard bold symbols e.g. for real numbers
 \usepackage{graphicx} % if you want to include jpeg or pdf pictures
 
 \title{JSProf - Javascript Profiler written in Javascript } % change this
-\author{Authors} % change this
+\author{Sneha Shankar Narayan, Vijay Pasikanti} % change this
 \date{\today} % change this
 
 \begin{document}
@@ -16,93 +18,136 @@ CS630 - Graduate Systems
 \end{center}
 \thispagestyle{empty}
 \newpage
-\section*{Acknowledgement} % this must be included in undergradate projects
-Write all sources looked at
-\\[12pt]
 
 \tableofcontents 
 
 %%%%%%%%%% MAIN TEXT STARTS HERE %%%%%%%%%%
 
 %%%%%%%%%% Chapter 1 %%%%%%%%%%
-\chapter{Approach}
+\chapter{Design and Approach}
 %
-The ask is to build a Javascript profiler in Javascript for 
+After looking at the existing profilers out there namely Google Chrome's developer tools and the Firebug suite we decided to give two options for the developers out there, namely a static way to analyze their Javascript files and also a dynamic way to do the same. We have used Esprima to parse the javascript code. In order to take care of the execution times and analyzing the call tree we have instrumented functions to profile the start and end of the function definitions. In order to take care of asynchronous callbacks we have replaced the function definitions of callbacks as well as the calls to the callbacks to have extra arguments. Using these arguments we track the time taken by the asynchronous functions and the callbacks. When the code is run we update few global data structures that captures the required data like the statistics of the function calls made and also the call tree that is generated. 
 
-\section{First section of this chapter}
+\section{Functionality provided}
 %
-The text of this section.
+The following functionality has been provided.
 
-\section{A subsequent section}
+\subsection{Execution times for individual functions}
 %
-Text introducing this section.
+Using the instrumented start and end functions we calculate the time taken by each function that is invoked.
 
-\subsection{First subsection of this section}
+\subsection{Edges between caller and callee functions}
 %
-The text of this subsection.
+By parsing the input code that we get from the user we make a list of all the functions that are called and the names of their callees. We also build a tree that shows what all functions are invoked and in what order they are invoked.
 
-\subsection{Another subsection}
+\subsection{Frequency of calls}
 %
-Text introducing this subsection
+We get this information from the global function tree that we update when the code runs.
 
-\subsubsection{A further subdivision, if necessary}
+\subsection{Reconstruction of the dynamic call paths}
 %
-Text introducing this subsubsection.
+We present this information in the form of a function tree that shows the order in which that the functions are invoked.
 
-\paragraph{Unnumbered paragraph heading}
-The text of this paragraph.
-
-%%%%%%%%%% INFORMATION %%%%%%%%%%
-\section{A Note About References}
+\subsection{Identification of hot paths}
 %
-The Third and Fourth Year Handbook, and the Third and Fourth Year Project Handbook, have some clear guidelines about plagiarism and referencing.
-You should consult your project supervisor about the correct format for handling references.
+We define hot paths as the paths that take the longest time to execute. For each piece of code that is profiled by our profiler we find out the path that takes the longest execution time and we output that path to the user such that the user can optimize that path.
 
-This document uses the `in-text' or Harvard system of referencing, which is a good default format.
-This requires both in-text citations and a list of references at the end of the document.
-The project templates have an example of a list of references.
-
-Within the text you must cite the authors surname(s) and the date of publication.
-When referring to a specific idea, or a direct quote, you must also give the page number.
-If there are two authors, use `and' and if there are more, use `et al.'\ and give all the authors names at the end.
-
-There are two styles of citation, implicit and explicit.
-Both are equally acceptable and it is also acceptable to mix and match.
-
-\subsection{Examples of implicit in-text citations}
+\subsection{Tracking sources/causes of asynchronous callbacks. }
 %
-The sum of convex functions is itself convex (Blacke, 1985) and therefore any minimiser of this objective function will be a global minimiser (Greene and Whit, 1995, p.123). It is possible to exploit this fact (Browne et al., 2005) to enhance the optimisation algorithm.
+We change the definition and the calls made in asynchronous callbacks to add an extra argument, which is the start time of execution of the caller, this information is used by another instrumented function that is present in the callback to determine the actual execution time of the asynchronous function.
 
-\subsection{Examples of explicit in-text citations}
+\section{Static analyzer}
 %
-Blacke (1985) first proved that a sum of convex functions is convex. Any minimiser of this objective function will be a global minimiser, a fact shown by Greene and Whit (1995, p.123) and exploited by Browne et al.\ (2005) to enhance the optimisation algorithm.
+The static analyzer deals with the javascript files that are input to the profiler. Here the user can input a javascript file to the user interface provided on the browser. The javascript files are parsed and the resulting structure is shown to the user on the browser interface.
 
-%%%%%%%%%% APPENDIX %%%%%%%%%%
-\appendix
-\chapter{An Appendix may not be necessary}
+\section{Dynamic analyzer}
 %
-Text introducing the/this appendix.
+The dynamic analyzer provides a way to analyze any website. In the user interface provided there is a textbox present that can be fed the URL of any website that the user wants to profile. A proxy server will be hosted on the node that the profiler runs in and this proxy server intercepts the code from the actual server and also instruments the code with the required instrumentation and the browser reads this instrumented code. The user can interact with the webpage for 30 seconds and that is the time that the profiler is run. While the profile is being run the user has the freedom to use the website the way he normally would. After the profiling is done the user can see the results with all the functionality provided in the user interface.
 
-\section{Appendix section}
+%%%%%%%%%% Chapter 2 %%%%%%%%%%
+\chapter{Results}
 %
-Text of this section.
+The results are provided in the same user interface that the user uses to input the file/website that has to be profiled.
 
-Subsections and further divisions can also be used in appendices.
-
-%%%%%%%%%% BIBLIOGRAPHY %%%%%%%%%%
-\chapter*{Bibliography}
+\section{Interpreting the results}
 %
 \begin{description}
+\item[$\bullet$] \textbf{Frequency of calls:} The hits specified is the number of times that function is invoked.
+\item[$\bullet$] \textbf{Execution times of individual functions:} This captures the average execution time that each function takes.
+\item[$\bullet$] \textbf{Edges between caller and callee functions:} This shows all the caller-callee pairs that have been invoked in the function and also the number of times that each caller-callee pair has been invoked.
+\item[$\bullet$] \textbf{Maximum execution time:} This shows the maximum execution time that is taken by one of the paths in the function call tree.
+\item[$\bullet$] \textbf{Hot path:} This shows the path that has taken the maximum time to execute in the function tree.
+\item[$\bullet$] \textbf{Function table:} This table shows the execution time taken by each function branch and also the time taken by the function in executing it's own tasks (not including the execution time taken by the functions that the current function invokes) The table also shows the level of each function.
 
-\item Author, I. (Year). \emph{Book Title}, Publisher; Place of publication.
 
-\item Lamport, L. (1986), \emph{\LaTeX: A Document Preparation System}, Addison-Wesley; Reading, MA.
+\end{description}
 
-\item Author, I. (Year). `Journal article title', \emph{Journal}, \textbf{Vol}, pp.first--last.
+%%%%%%%%%% Chapter 3 %%%%%%%%%%
+\chapter{Testing}
+%
+This chapter briefly describes the testing that was done on the profiler.
 
-\item Smith, A.D.A.C. and Wand, M.P. (2008). `Streamlined variance calculations for semiparametric
-mixed models', \emph{Statistics in Medicine}, \textbf{27}, pp.435--48.
+\section{Test cases}
+We performed various tests on the static and the dynamic analyzer to take care of all the conditions that we could think of.
+\subsection{Static analyzer}
+All the test cases that were used are under the /tests directory. Test cases considered were of the form
+\begin{description}
+\item[$\bullet$] Code that had a lot of function definitions, with functions being defined inside other functions.
+\item[$\bullet$] Code with funny indentation.
+\item[$\bullet$] Code with return statements strewn around in various places. Here we had to take care of the end of function instrumentation.
+\item[$\bullet$] Code with asynchronous callbacks. Instrumentation had to be done carefully here.
+\item[$\bullet$] Code with recursive and iterative calls.
+\item[$\bullet$] Code object definitions.
+\end{description}
 
+\subsection{Dynamic analyzer}
+Here we gave various URLs to our analyzer. Following are the issues which we have tested
+\begin{description}
+\item[$\bullet$] Code with lot of functions and javascript files.
+\item[$\bullet$] Code with javascript embedded in the HTML.
+\item[$\bullet$] Code with lot of asynchronous callbacks.
+\item[$\bullet$] Code with HTML comments embedded in the <<script>> tag.
+\item[$\bullet$] Issues with the instrumentations not working properly.
+\end{description}
+
+Following are some of the URLs that we have tested our code on.
+\begin{description}
+\item[$\bullet$]www.umass.edu
+\item[$\bullet$]www.cs.umass.edu
+\end{description}
+%%%%%%%%%% Chapter 4 %%%%%%%%%%
+\chapter{Setup}
+%
+This chapter describes the setup required to run the profiler
+\section{Requirements}
+\begin{description}
+\item[$\bullet$] Node.js
+\item[$\bullet$] Any browser (Preferably Google Chrome or Mozilla Firefox)
+\end{description}
+
+\section{npm packages that are required}
+\begin{description}
+\item[$\bullet$] esprima
+\item[$\bullet$] escodegen
+\item[$\bullet$] estraverse
+\item[$\bullet$] path
+\item[$\bullet$] http
+\item[$\bullet$] url
+\item[$\bullet$] request
+\item[$\bullet$] mime
+\item[$\bullet$] http-proxy
+\item[$\bullet$] express
+\end{description}
+
+\section{Steps to setup proxy server}
+\begin{description}
+\item[$\bullet$] Go to the nodejs command prompt and change the directory to the one where you have stored the JSProf source code. Run the file server.js.
+\item[$\bullet$] Change the browser settings to always fetch data from the proxy server configured at "localhost:9000".
+\end{description}
+
+\section{Using the profiler}
+\begin{description}
+\item[$\bullet$] Go to the browser and type localhost:9000 on the address bar. The user interface provided appears and you are good to go!
 \end{description}
 
 \end{document}
