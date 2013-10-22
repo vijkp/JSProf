@@ -21,6 +21,8 @@ var anonymousNumber = 0;
 var callBackList = [];
 var esprima = require("esprima");
 var escodegen = require("escodegen");
+var profileEnable = false;
+var cleanedCode = "";
 
 /* Test code for instrumentation */
 var startCode = "var startTime = profileStartInFunction(arguments.callee," + 
@@ -57,24 +59,34 @@ function initializeAllGlobals(){
 //=================================================================================================
 // Main function. Called from index.html
 //=================================================================================================
-exports.jsInstrumentFileOnServer = function (contents) {
-	initializeAllGlobals();
+exports.jsInstrumentFileOnServer = function (contents, print) {
+	console.log("Instrumenting the file");
+	
 
-	var cleanedCode = rewriteCode(contents);
-	console.log(contents);
-	console.log(cleanedCode);
+
+	initializeAllGlobals();
+	cleanedCode = rewriteCode(contents);
+	if(print)  console.log("rewritten contents " + contents + " end of the contents");
+
+	//console.log(contents);
+	//console.log(cleanedCode);
 	if (cleanedCode && listFunctionsInFile(cleanedCode)) {
 		
 		cleanedCode = rewriteCode(cleanedCode);
 		dealWithCallbacks(cleanedCode);
 		cleanedCode = changeCodeForCallBacks(cleanedCode);
+		
+		//if(print)  console.log("lasvegas1" + cleanedCode);
 
 		/* You need to re compute the start and end lines of the function definitions because
-		* the previous dealing with call backs will add new lines to the instrumented code */
+		 * the previous dealing with call backs will add new lines to the instrumented code */
 		cleanedCode = rewriteCode(cleanedCode);
 		listFunctionsInFile(cleanedCode);
+		//if(print)  console.log("lasvegas2" + cleanedCode);
 		cleanedCode = instrumentCode(cleanedCode);	
-		console.log(cleanedCode);
+		if(print) {
+			console.log("lasvegas3" + cleanedCode);
+		}
 	}	
 	return cleanedCode;
 }
@@ -109,13 +121,14 @@ function rewriteCode(contents)
 	/* Parse the code and rewrite it to the standard form that we are going to use */
 	var optionsToRewrite = {comment:true, format:{indent:{style:'    '}, quotes: 'double'}};
 	try {
-		toRewrite = esprima.parse(contents, {raw: true, tokens: true, range: true, comment: true});
-		//toRewrite = window.escodegen.attachComments(toRewrite, toRewrite.comments, toRewrite.tokens);
+		toRewrite = esprima.parse(contents, {raw: true, tokens: true, range: true, comment: false});
+		//toRewrite = escodegen.attachComments(toRewrite, toRewrite.comments, toRewrite.tokens);
 		cleanedCode = escodegen.generate(toRewrite, optionsToRewrite);
 	} catch(e) {
 		str = e.name + ": " + "rewriteCode: "+ e.message;
-		debugLog(str);
-		cleanedCode = null;	
+		console.log(str);
+		console.log(contents);
+		// cleanedCode = null;	
 		/* XXX: Show the error on the screen too. */
 	}
 	return cleanedCode;
@@ -311,6 +324,7 @@ function listFunctionsInFile(cleanedCode)
 	} catch(e) {
 		str = e.name + ": " + "parseCode: " + e.message;
 		debugLog(str);
+		console.log(str);
 		/* XXX: Show the error on the screen too. */
 		return false;
 	}
@@ -372,8 +386,8 @@ function listFunctionsRecursive(list)
 					} else {
 					/* Here we want to deal with (function(){})(); kidn of expressions */
 					/* obj.expression.right will be undefined in this case */
-					if((obj.expression.type === "CallExpression") && 
-						(obj.expression.callee.type === "FunctionExpression")) {
+					if((obj.expression.type === "CallExpression")) {
+						if (obj.expression.callee.type === "FunctionExpression") {
 							var functionName = "anonymous" + anonymousNumber;
 							anonymousNumber += 1;
 							functionList[functionName] = {"name": functionName,
@@ -381,7 +395,20 @@ function listFunctionsRecursive(list)
 														  "lend": obj.expression.callee.loc.end.line-1};
 							listFunctionsRecursive(obj.expression.callee.body.body);
 							}
+						}
+						/* Takes care of the definitions like foo.bar(function(){});*/
+						if (obj.expression.arguments !== undefined) {
+							listFunctionsRecursive(obj.expression.arguments);
+						}
 					}
+					break;
+				case "FunctionExpression":
+					var functionName = "anonymous" + anonymousNumber;
+					anonymousNumber += 1;
+					functionList[functionName] = {"name": functionName,
+												  "lstart": obj.loc.start.line -1,
+												  "lend": obj.loc.end.line-1};
+					listFunctionsRecursive(obj.body.body);
 					break;
 
 				/*case "ReturnStatement":
@@ -446,9 +473,9 @@ function sortFunctionPositions(linesOfCode)
 function dealWithReturnStatements(code)
 {
 	for(var i=0; i<code.length; i++)
-	{
+	{	
 		if(code[i].indexOf("return ") != -1)
-		{
+		{	
 			/* Function is returning another function */
 			if(code[i].indexOf("(") != -1)
 			{
@@ -472,11 +499,8 @@ function dealWithReturnStatements(code)
 					endCode = findAndGetFunctionName(code, i);
 					code[i] = code[i] + " " + endCode + " return JSProfTemp;";
 				}
-			}
-
-			/* Normal return values */	
-			else
-			{
+			} else {
+				/* Normal return values */	
 				endCode = findAndGetFunctionName(code, i);
 				code[i] = " " + endCode + code[i];
 			}
@@ -491,16 +515,18 @@ function dealWithReturnStatements(code)
 //=================================================================================================
 function findAndGetFunctionName(code, i) {
 	var endCode;
-	
-	while (positionList[i] === undefined) {
+	while ((i <= code.length) && (positionList[i] === undefined)) {
 		if (i == positionList.length) {
 			return ";";
 		}
 		i++;
 	}
-	if(positionList[i].position === "end") {
-		endCode = "profileEndInFunction(\"" + positionList[i].name + "\", startTime);";
-		return endCode;
+
+	if (i <= code.length) {
+		if(positionList[i].position === "end") {
+			endCode = "profileEndInFunction(\"" + positionList[i].name + "\", startTime);";
+			return endCode;
+		}
 	}
 }
 
@@ -571,6 +597,10 @@ function addNodeToFuncTree(callerNode, calleeName, isInstrumented) {
 // Function that is inserted at the start of every function definition
 //=================================================================================================
 function profileStartInFunction(calleeName, caller) {
+	console.log("profenable start" + profileEnable);
+	if(!profileEnable) { 
+		return;
+	}
 	var callerName;
 	var currentFunc;
 	var parentNodeFunc;
@@ -584,7 +614,7 @@ function profileStartInFunction(calleeName, caller) {
 	}
 
 	var trace = printStackTrace();
-	console.log(trace);
+	//console.log(trace);
 	if (currentNode.name === "root") {
 		for (i = (trace.length - 1); i >= 0 ; i--){
 			var arr = trace[i].split(" ");
@@ -640,6 +670,11 @@ function profileStartInFunction(calleeName, caller) {
 // Function inserted at the end of every function definition
 //=================================================================================================
 function profileEndInFunction(calleeName, startTime) {
+	console.log("profenable end" + profileEnable);
+
+	if(!profileEnable) { 
+		return;
+	}
 	var curTime = +new Date();
 	if (calleeName === undefined) {
 		return;
@@ -656,12 +691,16 @@ function profileEndInFunction(calleeName, startTime) {
 // Function inserted at the end of every callback functiond definition
 //=================================================================================================
 function profileCallBackEnd(startTimeOfCaller, callerName, callBackNode) {
+	console.log("profenable callback" + profileEnable);
+	if(!profileEnable) { 
+		return;
+	}
 	var curTime = +new Date();
-	if (calleeName === undefined) {
+	if (callerName === undefined) {	
 		return;
 	} 
 	callBackNode.executionTime = (curTime - startTimeOfCaller);
-	ccallBackNode.selfTime = callBackNode.executionTime;
+	callBackNode.selfTime = callBackNode.executionTime;
 	
 	functionStats[callerName].timeOfExec += (curTime - startTimeOfCaller);
 }

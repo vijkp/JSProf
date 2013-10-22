@@ -12,13 +12,20 @@ var functionListString = "";
 var functionStats = [];
 var pathTreeString = [];
 var positionList = [];
-var funcTree = {};
-var currentNode = {};
+var funcTree = {"name": "root",
+				"executionTime": 0,
+				"child": [],
+				"level": -1,
+				"parentNode": {},
+				"isInstrumented": false,
+				"selfTime" : 0};
+var currentNode = funcTree;
 var treeTopDownList = [];
 var globalMaxExecTime = -9999;
 var globalHotPath = [];
 var anonymousNumber = 0;
 var callBackList = [];
+var profileEnable = true;
 
 /* Test code for instrumentation */
 var startCode = "var startTime = profileStartInFunction(arguments.callee," + 
@@ -72,6 +79,7 @@ function jsprofile(contents)
 		listFunctionsInFile(cleanedCode);
 		cleanedCode = instrumentCode(cleanedCode);
 		eval(cleanedCode);
+		console.log(cleanedCode);
 		showResults();	
 	}	
 	return functionListString;
@@ -109,8 +117,10 @@ function rewriteCode(contents)
 	var optionsToRewrite = {comment:true, format:{indent:{style:'    '}, quotes: 'double'}};
 	try {
 		toRewrite = esprima.parse(contents, {raw: true, tokens: true, range: true, comment: true});
+		//console.log("toRewrite: "+ toRewrite);
 		//toRewrite = window.escodegen.attachComments(toRewrite, toRewrite.comments, toRewrite.tokens);
 		cleanedCode = escodegen.generate(toRewrite, optionsToRewrite);
+		//console.log("cleanedCode "+ cleanedCode);
 	} catch(e) {
 		str = e.name + ": " + "rewriteCode: "+ e.message;
 		debugLog(str);
@@ -371,8 +381,8 @@ function listFunctionsRecursive(list)
 					} else {
 					/* Here we want to deal with (function(){})(); kidn of expressions */
 					/* obj.expression.right will be undefined in this case */
-					if((obj.expression.type === "CallExpression") && 
-						(obj.expression.callee.type === "FunctionExpression")) {
+					if((obj.expression.type === "CallExpression")) {
+						if (obj.expression.callee.type === "FunctionExpression") {
 							var functionName = "anonymous" + anonymousNumber;
 							anonymousNumber += 1;
 							functionList[functionName] = {"name": functionName,
@@ -380,7 +390,20 @@ function listFunctionsRecursive(list)
 														  "lend": obj.expression.callee.loc.end.line-1};
 							listFunctionsRecursive(obj.expression.callee.body.body);
 							}
+						}
+						/* Takes care of the definitions like foo.bar(function(){});*/
+						if (obj.expression.arguments !== undefined) {
+							listFunctionsRecursive(obj.expression.arguments);
+						}
 					}
+					break;
+				case "FunctionExpression":
+					var functionName = "anonymous" + anonymousNumber;
+					anonymousNumber += 1;
+					functionList[functionName] = {"name": functionName,
+												  "lstart": obj.loc.start.line -1,
+												  "lend": obj.loc.end.line-1};
+					listFunctionsRecursive(obj.body.body);
 					break;
 
 				/*case "ReturnStatement":
@@ -445,9 +468,9 @@ function sortFunctionPositions(linesOfCode)
 function dealWithReturnStatements(code)
 {
 	for(var i=0; i<code.length; i++)
-	{
+	{	
 		if(code[i].indexOf("return ") != -1)
-		{
+		{	
 			/* Function is returning another function */
 			if(code[i].indexOf("(") != -1)
 			{
@@ -471,11 +494,8 @@ function dealWithReturnStatements(code)
 					endCode = findAndGetFunctionName(code, i);
 					code[i] = code[i] + " " + endCode + " return JSProfTemp;";
 				}
-			}
-
-			/* Normal return values */	
-			else
-			{
+			} else {
+				/* Normal return values */	
 				endCode = findAndGetFunctionName(code, i);
 				code[i] = " " + endCode + code[i];
 			}
@@ -490,16 +510,18 @@ function dealWithReturnStatements(code)
 //=================================================================================================
 function findAndGetFunctionName(code, i) {
 	var endCode;
-	
-	while (positionList[i] === undefined) {
+	while ((i <= code.length) && (positionList[i] === undefined)) {
 		if (i == positionList.length) {
 			return ";";
 		}
 		i++;
 	}
-	if(positionList[i].position === "end") {
-		endCode = "profileEndInFunction(\"" + positionList[i].name + "\", startTime);";
-		return endCode;
+
+	if (i <= code.length) {
+		if(positionList[i].position === "end") {
+			endCode = "profileEndInFunction(\"" + positionList[i].name + "\", startTime);";
+			return endCode;
+		}
 	}
 }
 
@@ -570,6 +592,10 @@ function addNodeToFuncTree(callerNode, calleeName, isInstrumented) {
 // Function that is inserted at the start of every function definition
 //=================================================================================================
 function profileStartInFunction(calleeName, caller) {
+	
+	if(!profileEnable) { 
+			return;
+	}
 	var callerName;
 	var currentFunc;
 	var parentNodeFunc;
@@ -583,7 +609,7 @@ function profileStartInFunction(calleeName, caller) {
 	}
 
 	var trace = printStackTrace();
-	console.log(trace);
+	//console.log(trace);		
 	if (currentNode.name === "root") {
 		for (i = (trace.length - 1); i >= 0 ; i--){
 			var arr = trace[i].split(" ");
@@ -639,6 +665,11 @@ function profileStartInFunction(calleeName, caller) {
 // Function inserted at the end of every function definition
 //=================================================================================================
 function profileEndInFunction(calleeName, startTime) {
+	console.log("profenable callback" + profileEnable);
+	if(!profileEnable) { 
+		return;
+	}
+
 	var curTime = +new Date();
 	if (calleeName === undefined) {
 		return;
@@ -655,12 +686,17 @@ function profileEndInFunction(calleeName, startTime) {
 // Function inserted at the end of every callback functiond definition
 //=================================================================================================
 function profileCallBackEnd(startTimeOfCaller, callerName, callBackNode) {
+	console.log("profenable callback" + profileEnable);
+	if(!profileEnable) { 
+		return;
+	}
+
 	var curTime = +new Date();
-	if (calleeName === undefined) {
+	if (callerName === undefined) {
 		return;
 	} 
 	callBackNode.executionTime = (curTime - startTimeOfCaller);
-	ccallBackNode.selfTime = callBackNode.executionTime;
+	callBackNode.selfTime = callBackNode.executionTime;
 	
 	functionStats[callerName].timeOfExec += (curTime - startTimeOfCaller);
 }

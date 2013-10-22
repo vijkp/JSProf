@@ -48,7 +48,7 @@
                 <div id="url_test"> 
                     <h3> Test a website </h3>
                     Enter an url here:
-                        <input id="url_input" onKeyPress="return checkSubmit(event)" aria-hidden="true" autocomplete="off" tabindex="-1" value="www.umass.edu">
+                        <input id="url_input" onKeyPress="return checkSubmit(event)" aria-hidden="true" autocomplete="off" tabindex="-1" value="http://www.vassarstats.net/textbook/ch5apx.html">
                         <button id="go_button" onclick="Javascript:readTextandGo()">Go!</button>
                 </div>
                 <div id="testbed">
@@ -73,12 +73,21 @@
             function getId(id) {
                 return document.getElementById(id);
             }
+
+            /* Send jsprof javascript to iframe */
+            /*var scriptadd = "<script src=\"http://localhost:9000/jsprof.js\"><";
+            scriptadd += "/script>";
+            scriptadd += "<script>  var profileEnable = true; <";
+            scriptadd += "/script>";
+            console.log(scriptadd);
+            $("#iframe_box").contents().find('body').append(scriptadd);
+            */
+
             function checkSubmit(e) {
                 if (e && e.keyCode == 13){
                     readTextandGo();
                 }
             }
-
             function readTextandGo() {
                 var new_url = getId("url_input").value;
                 if(new_url.indexOf('http://') != 0) {
@@ -109,6 +118,7 @@
             $('#start').click(function() {
                 $("#message").html("Profiler started.");
                 $("#results").hide();
+
             });
 
             $('#end').click(function() {

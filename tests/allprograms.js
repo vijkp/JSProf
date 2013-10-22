@@ -16,11 +16,14 @@
 var abc = 0;
 var umass;
 
+
 umass = function(){
+	var i;
 	function student(){
 		return 0;
 	}
 	
+	return i-1;
 };
 
 var tmp;
