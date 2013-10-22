@@ -73,8 +73,8 @@ httpProxy.createServer(function (req, res, proxy) {
 				htmlBody = response.body; 
 
 				// Insert jsprof.js into the html file
-				var replaceString = "<head> <script src=\"http://localhost:9000/jsprof.js\"><" +
-									"/script><script>var profileEnable = true; <" + "/script>" +
+				var replaceString = "<head> <script>var timeToRun = 30;<" +
+									"/script><script src=\"http://localhost:9000/jsprof-iframe.js\"><" + "/script>" +
 									"<script type=\"text/javascript\" src='http://localhost:9000/lib/stacktrace.js'><" + "/script>";
 
 				htmlBody = htmlBody.replace("<head>", replaceString);

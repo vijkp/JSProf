@@ -26,14 +26,20 @@ var globalHotPath = [];
 var anonymousNumber = 0;
 var callBackList = [];
 var profileEnable = true;
-var timeToRun;
+var resultString = "";
 
+function StartTimer(){
+	if(timeToRun > 0){		
+		console.log("Timer started");
+		window.setInterval(showResults2, timeToRun*1000);
+	}
+}
 
-$(function() {
-	console.log( 'document is ready!' );
-		    //var data = $("iframe_box").contents().find("body").html();
-		    //console.log("Data Loaded: " + data);
-});
+StartTimer();
+
+function showResults2() {
+	alert(pathTreeString + "maximum execution time is " + maxExecTime + JSON.stringify(funcTree));
+}
 
 
 /* Test code for instrumentation */
@@ -87,9 +93,9 @@ function jsprofile(contents)
 		cleanedCode = rewriteCode(cleanedCode);
 		listFunctionsInFile(cleanedCode);
 		cleanedCode = instrumentCode(cleanedCode);
-		eval(cleanedCode);
-		console.log(cleanedCode);
-		showResults();	
+		//eval(cleanedCode);
+		//console.log(cleanedCode);
+		//showResults();	
 	}	
 	return functionListString;
 }
@@ -606,7 +612,7 @@ function profileStartInFunction(calleeName, caller) {
 	if(!profileEnable) { 
 			return;
 	} else {
-		console.log("js profile: function call");
+		//console.log("js profile: function call");
 	}
 
 	var callerName;
@@ -685,7 +691,7 @@ function profileEndInFunction(calleeName, startTime) {
 	if(!profileEnable) { 
 		return;
 	} else {
-		console.log("js profile: function end" + profileEnable);
+		//console.log("js profile: function end" + profileEnable);
 	}
 
 	var curTime = +new Date();
@@ -713,7 +719,7 @@ function profileCallBackEnd(startTimeOfCaller, callerName, callBackNode) {
 	if(!profileEnable) { 
 		return;
 	} else {
-		console.log("js profrile callback" + profileEnable);
+		//console.log("js profrile callback" + profileEnable);
 	}
 
 	var curTime = +new Date();
@@ -944,8 +950,8 @@ function showResults() {
 	}
 
 	debugLog("Max executionTime: " + globalMaxExecTime);
-	console.log("Max executionTime: " + globalMaxExecTime);
-	debugLog("Path is ");
+	//console.log("Max executionTime: " + globalMaxExecTime);
+	debugLog("Hot Path is ");
 	for(var x=0 ; x<globalHotPath.length; x++)
 	{		
 		console.log(" " + globalHotPath[x].name + " ");

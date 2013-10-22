@@ -192,7 +192,12 @@ ul {
 }
 
 #url_input {
-	width: 400px;
+	width: 350px;
+}
+
+#time_input {
+	width: 50px;
+	display: none;
 }
 
 #go_button {

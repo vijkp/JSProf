@@ -49,7 +49,10 @@
                     <h3> Test a website </h3>
                     Enter an url here:
                         <input id="url_input" onKeyPress="return checkSubmit(event)" aria-hidden="true" autocomplete="off" tabindex="-1" value="www.umass.edu">
+                    Time: 30sec
+                        <input id="time_input" onKeyPress="return checkSubmit(event)" aria-hidden="true" autocomplete="off" tabindex="-1" value="30">
                         <button id="go_button" onclick="Javascript:readTextandGo()">Go!</button>
+
                 </div>
                 <div id="testbed">
                     <h3> Test a .js file </h3>
@@ -74,15 +77,6 @@
                 return document.getElementById(id);
             }
 
-            /* Send jsprof javascript to iframe */
-            /*var scriptadd = "<script src=\"http://localhost:9000/jsprof.js\"><";
-            scriptadd += "/script>";
-            scriptadd += "<script>  var profileEnable = true; <";
-            scriptadd += "/script>";
-            console.log(scriptadd);
-            $("#iframe_box").contents().find('body').append(scriptadd);
-            */
-
             function checkSubmit(e) {
                 if (e && e.keyCode == 13){
                     readTextandGo();
@@ -94,9 +88,9 @@
                     new_url = "http://" + new_url;
                 }
                 var new_size = $(window).width();
-                var new_iframe_height = $(window).height() - 96;
-                $("#header").hide();
-                $("#menu").show();
+                var new_iframe_height = $(window).height() - 75;
+                $("#header").animate({"font-size": 12},  0);
+                $("#menu").hide();
                 $("#wrap2").show();
                 $("#wrap2").animate({width: new_size}, 0);
                 $("#testbed").hide();
@@ -107,13 +101,8 @@
                 $("#footer").hide();
                 $("#wrap").animate({paddingTop: 6, paddingBottom: 6, height: 32}, 0);
                 getId("iframe_box").src = new_url;
+
             }
-            
-            $(function() {
-                console.log( 'ready!' );
-                var data = $("iframe_box").contents().find("body").html();
-                console.log("Data Loaded: " + data);
-            });
                 
             $('#start').click(function() {
                 $("#message").html("Profiler started.");
