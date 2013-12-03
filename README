@@ -47,6 +47,6 @@ where you have stored the JSProf source code. Run the le server.js.
 * Change the browser settings to always fetch data from the proxy server
 congured at "localhost:9000".
 
-Using the proler
+How to use the profiler?
 * Go to the browser and type localhost:9000 on the address bar. The user
 interface provided appears and you are good to go!
