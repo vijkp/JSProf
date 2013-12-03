@@ -39,8 +39,8 @@ Steps to setup proxy server
 	  configured at "localhost:9000".
 
 How to use the profiler?
-* Go to the browser and type localhost:9000 on the address bar. The user
-interface provided appears and you are good to go!
+	* Go to the browser and type localhost:9000 on the address bar. The user
+	  interface provided appears and you are good to go!
 
 References:
 ===========
